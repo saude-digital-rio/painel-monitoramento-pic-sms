@@ -78,7 +78,7 @@ export default function FontesPage() {
       </div>
 
       {/* Tabela de fontes */}
-      <Card title="Tabelas-fonte monitoradas" subtitle="Clique em uma linha para ver o histórico de volume" padding={false}>
+      <Card title="Tabelas-fonte monitoradas" subtitle="Clique em uma linha para ver o histórico de volume" padding={false} tooltip="Tabelas BigQuery usadas pelo painel com volume atual, variação em relação à média de 7 dias e tempo desde a última atualização.">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -156,7 +156,7 @@ export default function FontesPage() {
       )}
 
       {/* Legenda de severidade */}
-      <Card title="Regras de alerta de freshness" className="mt-6">
+      <Card title="Regras de alerta de freshness" className="mt-6" tooltip="Critérios para classificar o status de cada fonte: aviso (24–48h sem atualização), alerta (48–72h) ou crítico (>72h ou variação >±10%).">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 mt-0.5 shrink-0" />

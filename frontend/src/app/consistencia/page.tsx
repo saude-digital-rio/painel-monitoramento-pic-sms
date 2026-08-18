@@ -42,7 +42,7 @@ export default async function ConsistenciaPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Série vacinação */}
-        <Card title="Volume semanal D3 pentavalente (12 semanas)">
+        <Card title="Volume semanal D3 pentavalente (12 semanas)" tooltip="Doses D3 da vacina pentavalente registradas por semana nas últimas 12 semanas, separadas por fonte (SIPNI e Vitacare).">
           {serie ? (
             <MultiBarChart
               data={serie}
@@ -59,7 +59,7 @@ export default async function ConsistenciaPage() {
         </Card>
 
         {/* Taxa de descarte */}
-        <Card title="Série de descarte semanal (RF-07)" subtitle="Registros excluídos por motivo">
+        <Card title="Série de descarte semanal (RF-07)" subtitle="Registros excluídos por motivo" tooltip="Registros de vacinação removidos a cada semana, classificados pelo motivo: vacina não aplicada, data nula ou outros.">
           {serie ? (
             <MultiBarChart
               data={serie}
@@ -79,7 +79,7 @@ export default async function ConsistenciaPage() {
 
       {/* Sequência pentavalente */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card title="Sequência da pentavalente D1→D2→D3 (RF-17)">
+        <Card title="Sequência da pentavalente D1→D2→D3 (RF-17)" tooltip="Verifica se crianças com D3 registrada também possuem D1 e D2, e se o intervalo entre doses está dentro do esperado (28–90 dias).">
           {pentaReal ? (
             <div className="space-y-3">
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
@@ -165,7 +165,7 @@ export default async function ConsistenciaPage() {
         </Card>
 
         {/* Testes rápidos */}
-        <Card title="Testes rápidos — divergência entre fontes (RF-08)">
+        <Card title="Testes rápidos — divergência entre fontes (RF-08)" tooltip="Compara a contagem de testes rápidos entre a tabela de procedimentos e a API de testes, por tipo. Divergências acima de 10% são sinalizadas.">
           {divergencia ? (
             <div className="space-y-3 mb-4">
               {Object.entries(divergencia).map(([tipo, d]) => {
@@ -200,7 +200,7 @@ export default async function ConsistenciaPage() {
             <ApiErrorCard mensagem="Dados de divergência indisponíveis." />
           )}
 
-          <Card title="Série semanal — testes rápidos (12 semanas)">
+          <Card title="Série semanal — testes rápidos (12 semanas)" tooltip="Volume semanal de testes rápidos nas últimas 12 semanas, comparando registros de procedimentos com resultados da API de testes, por tipo.">
             {testes ? (
               <MultiLineChart
                 data={testes}

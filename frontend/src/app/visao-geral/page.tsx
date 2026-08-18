@@ -67,7 +67,7 @@ export default async function VisaoGeralPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Evolução população */}
-        <Card title="Evolução da população-alvo (30 dias)" className="lg:col-span-2">
+        <Card title="Evolução da população-alvo (30 dias)" className="lg:col-span-2" tooltip="Novas entradas por dia em cada segmento nos últimos 30 dias, agrupadas pela data de início da janela de monitoramento. Não representa o total acumulado da população.">
           {serieReal ? (
             <MultiLineChart
               data={serieReal}
@@ -84,7 +84,7 @@ export default async function VisaoGeralPage() {
         </Card>
 
         {/* Segmentos */}
-        <Card title="Segmentos atuais">
+        <Card title="Segmentos atuais" tooltip="Distribuição atual da população-alvo entre os três segmentos monitorados: gestação, puerpério e infância.">
           {popReal ? (
             <div className="space-y-4">
               {[
@@ -124,7 +124,7 @@ export default async function VisaoGeralPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status das fontes */}
-        <Card title="Status das fontes" subtitle="Freshness e alertas de volume" padding={false}>
+        <Card title="Status das fontes" subtitle="Freshness e alertas de volume" padding={false} tooltip="Tempo desde a última atualização das tabelas de dados (Vitacare, SIPNI). Alertas indicam dados potencialmente desatualizados.">
           {fontesReal ? (
             <div className="divide-y divide-gray-50">
               {fontesReal.map((fonte) => (
@@ -158,7 +158,7 @@ export default async function VisaoGeralPage() {
 
         <div className="space-y-6">
           {/* Execução dos modelos */}
-          <Card title="Execução dos modelos de saída">
+          <Card title="Execução dos modelos de saída" tooltip="Última execução dos modelos dbt que geram as tabelas enviadas ao PIC. Intervalos acima de 25h indicam atraso na entrega dos dados.">
             {modelosReal ? (
               <div className="space-y-4">
                 {modelosReal.map((m) => (
@@ -196,7 +196,7 @@ export default async function VisaoGeralPage() {
           </Card>
 
           {/* Alertas recentes */}
-          <Card title="Alertas ativos recentes" padding={false}>
+          <Card title="Alertas ativos recentes" padding={false} tooltip="Regras automáticas que detectaram anomalias nos dados: queda de volume, inconsistência entre fontes ou campos inválidos.">
             {alertasReal ? (
               <>
                 <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">

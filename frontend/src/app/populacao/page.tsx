@@ -65,7 +65,7 @@ export default async function PopulacaoPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Série temporal */}
-        <Card title="Evolução da população-alvo (30 dias)">
+        <Card title="Novas entradas por dia — últimos 30 dias" tooltip="Quantas pessoas iniciaram sua janela de monitoramento em cada dia, por segmento. Não representa o total acumulado — a maioria da população entrou há mais de 30 dias.">
           {serieReal ? (
             <MultiLineChart
               data={serieReal}
@@ -82,7 +82,7 @@ export default async function PopulacaoPage() {
         </Card>
 
         {/* Janelas temporais */}
-        <Card title="Consistência das janelas temporais (RF-04)">
+        <Card title="Consistência das janelas temporais (RF-04)" tooltip="Verifica se as datas das janelas estão dentro dos limites: gestação ≤ 300 dias, puerpério = 45 dias exatos, infância ≤ 6 anos.">
           {janelasReal ? (
             <div className="space-y-4">
               {[
@@ -136,7 +136,7 @@ export default async function PopulacaoPage() {
 
       {/* Entradas e saídas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card title="Entradas por semana (RF-03)">
+        <Card title="Entradas por semana (RF-03)" tooltip="Novos registros adicionados à população-alvo a cada semana, agrupados por segmento (gestação, puerpério, infância).">
           {entradasReal ? (
             <MultiBarChart
               data={entradasPorSemana}
@@ -151,7 +151,7 @@ export default async function PopulacaoPage() {
             <ApiErrorCard />
           )}
         </Card>
-        <Card title="Saídas por semana com motivo (RF-03)">
+        <Card title="Saídas por semana com motivo (RF-03)" tooltip="Registros que saíram da população-alvo por semana. Motivos: encerramento da gestação, expiração da janela de monitoramento ou desaparecimento do paciente.">
           {entradasReal ? (
             <>
               <MultiBarChart
@@ -174,7 +174,7 @@ export default async function PopulacaoPage() {
 
       {/* Gestações e cadastro */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Monitoramento de gestações (RF-10)">
+        <Card title="Monitoramento de gestações (RF-10)" tooltip="Anomalias nos registros de gestação: datas nulas ou no futuro, e pacientes com mais de uma gestação ativa ao mesmo tempo.">
           {gestacaoReal ? (
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -206,7 +206,7 @@ export default async function PopulacaoPage() {
           )}
         </Card>
 
-        <Card title="Qualidade do cadastro Vitacare (RF-11)">
+        <Card title="Qualidade do cadastro Vitacare (RF-11)" tooltip="Validade dos dados cadastrais dos pacientes: CPF com formato inválido, datas de nascimento incorretas e falta de vínculo com a população-alvo.">
           {cadastroReal ? (
             <div className="space-y-3">
               {[

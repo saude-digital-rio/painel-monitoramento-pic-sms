@@ -63,7 +63,7 @@ export default function AlertasPage() {
       </div>
 
       {/* Histórico — placeholder até endpoint disponível */}
-      <Card title="Histórico semanal de alertas" className="mb-6">
+      <Card title="Histórico semanal de alertas" className="mb-6" tooltip="Evolução do número de alertas ativos por semana. Funcionalidade em desenvolvimento — requer endpoint de série histórica.">
         <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
           <BarChart2 className="w-8 h-8 opacity-30" />
           <p className="text-sm">Histórico semanal em desenvolvimento</p>
