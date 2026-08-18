@@ -94,9 +94,9 @@ def get_cobertura():
     ]
 
 
-@router.get("/consistencia-datas")
-def get_consistencia_datas():
-    """RF-06: Consistência das datas dos eventos."""
+def _get_eventos_counters() -> dict:
+    """Uma única varredura de projeto_pic.eventos retorna todos os contadores escalares
+    usados por /consistencia-datas e /completude, evitando dois full-scans separados."""
     sql = f"""
         SELECT
             COUNTIF(data_evento > CURRENT_DATE()) AS eventos_futuro,
@@ -104,17 +104,26 @@ def get_consistencia_datas():
             COUNTIF(distancia_dias IS NULL) AS distancia_dias_nula,
             COUNTIF(distancia_dias < 0) AS distancia_dias_negativa,
             COUNTIF(inicio_fase IS NULL) AS inicio_fase_nulo,
-            -- Eventos fora da janela (data_evento fora de [inicio_fase, fim_fase])
             COUNTIF(
                 data_evento IS NOT NULL
                 AND inicio_fase IS NOT NULL
                 AND fim_fase IS NOT NULL
                 AND (data_evento < inicio_fase OR data_evento > fim_fase)
-            ) AS eventos_fora_janela
+            ) AS eventos_fora_janela,
+            COUNTIF(tipo_publico IS NULL) AS tipo_publico_nulo,
+            COUNTIF(tipo_evento IS NULL) AS tipo_evento_nulo,
+            COUNTIF(data_evento IS NULL) AS data_evento_nula,
+            COUNTIF(cpf IS NULL) AS cpf_nulo
         FROM `{PROJECT}.projeto_pic.eventos`
     """
-    rows = executar_query(sql, cache_key="eventos_consist_datas", ttl=settings.CACHE_TTL_SEGUNDOS)
-    r = rows[0] if rows else {}
+    rows = executar_query(sql, cache_key="eventos_counters", ttl=settings.CACHE_TTL_SEGUNDOS)
+    return rows[0] if rows else {}
+
+
+@router.get("/consistencia-datas")
+def get_consistencia_datas():
+    """RF-06: Consistência das datas dos eventos."""
+    r = _get_eventos_counters()
     return {
         "eventos_futuro": int(r.get("eventos_futuro", 0)),
         "eventos_outlier_passado": int(r.get("eventos_outlier_passado", 0)),
@@ -161,17 +170,13 @@ def get_evento_segmento():
 @router.get("/completude")
 def get_completude():
     """RF-18: Completude dos campos transmitidos."""
-    sql = f"""
-        SELECT
-            COUNTIF(tipo_publico IS NULL) AS tipo_publico_nulo,
-            COUNTIF(tipo_evento IS NULL) AS tipo_evento_nulo,
-            COUNTIF(data_evento IS NULL) AS data_evento_nula,
-            COUNTIF(cpf IS NULL) AS cpf_nulo,
-            COUNTIF(distancia_dias IS NULL) AS distancia_dias_nula,
-            COUNTIF(distancia_dias < 0) AS distancia_dias_negativa,
-            COUNTIF(inicio_fase IS NULL) AS inicio_fase_nulo
-        FROM `{PROJECT}.projeto_pic.eventos`
-    """
-    rows = executar_query(sql, cache_key="eventos_completude", ttl=settings.CACHE_TTL_SEGUNDOS)
-    r = rows[0] if rows else {}
-    return {k: int(v or 0) for k, v in r.items()}
+    r = _get_eventos_counters()
+    return {
+        "tipo_publico_nulo": int(r.get("tipo_publico_nulo", 0)),
+        "tipo_evento_nulo": int(r.get("tipo_evento_nulo", 0)),
+        "data_evento_nula": int(r.get("data_evento_nula", 0)),
+        "cpf_nulo": int(r.get("cpf_nulo", 0)),
+        "distancia_dias_nula": int(r.get("distancia_dias_nula", 0)),
+        "distancia_dias_negativa": int(r.get("distancia_dias_negativa", 0)),
+        "inicio_fase_nulo": int(r.get("inicio_fase_nulo", 0)),
+    }

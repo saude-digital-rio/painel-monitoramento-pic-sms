@@ -44,6 +44,8 @@ class _Cache:
 _cache = _Cache()
 _bq_client: bigquery.Client | None = None
 _bq_lock = threading.Lock()
+_inflight: dict[str, threading.Event] = {}
+_inflight_lock = threading.Lock()
 
 
 def get_client() -> bigquery.Client:
@@ -58,6 +60,7 @@ def executar_query(sql: str, cache_key: str | None = None, ttl: int | None = Non
     """
     Executa uma query no BigQuery e retorna lista de dicts.
     Se cache_key e ttl forem fornecidos, usa cache em memória.
+    Requests simultâneos para a mesma chave aguardam o primeiro terminar (deduplicação).
     """
     ttl = ttl or settings.CACHE_TTL_SEGUNDOS
 
@@ -67,15 +70,33 @@ def executar_query(sql: str, cache_key: str | None = None, ttl: int | None = Non
             logger.debug("Cache hit: %s", cache_key)
             return cached
 
-    logger.info("BigQuery query: %s", cache_key or sql[:80])
-    client = get_client()
-    resultado = client.query(sql).result()
-    rows = [dict(row) for row in resultado]
+        # Deduplicação: se outra thread já está rodando esta query, aguarda
+        with _inflight_lock:
+            if cache_key in _inflight:
+                event = _inflight[cache_key]
+                is_leader = False
+            else:
+                event = threading.Event()
+                _inflight[cache_key] = event
+                is_leader = True
 
-    if cache_key:
-        _cache.set(cache_key, rows)
+        if not is_leader:
+            event.wait(timeout=30)
+            return _cache.get(cache_key, ttl) or []
 
-    return rows
+    try:
+        logger.info("BigQuery query: %s", cache_key or sql[:80])
+        client = get_client()
+        resultado = client.query(sql).result()
+        rows = [dict(row) for row in resultado]
+        if cache_key:
+            _cache.set(cache_key, rows)
+        return rows
+    finally:
+        if cache_key and is_leader:
+            with _inflight_lock:
+                _inflight.pop(cache_key, None)
+            event.set()
 
 
 PROJECT = settings.GCP_PROJECT

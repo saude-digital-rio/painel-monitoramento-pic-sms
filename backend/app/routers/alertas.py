@@ -15,6 +15,8 @@ from fastapi import APIRouter
 from app.config import settings
 from app.services.bigquery import PROJECT, executar_query
 from app.routers.fontes import get_status_fontes, get_execucoes_modelos
+from app.routers.populacao import get_janelas_temporais
+from app.routers.eventos import get_consistencia_datas
 
 router = APIRouter(prefix="/alertas", tags=["Alertas"])
 logger = logging.getLogger(__name__)
@@ -77,16 +79,9 @@ def _check_modelos() -> list[dict]:
 
 
 def _check_janelas() -> list[dict]:
-    sql = f"""
-        SELECT
-            COUNTIF(tipo_publico = 'Gestacao' AND DATE_DIFF(fim, inicio, DAY) <= 0) AS gestacao_duracao_invalida,
-            COUNTIF(tipo_publico = 'Gestacao' AND DATE_DIFF(fim, inicio, DAY) > 300) AS gestacao_acima_300,
-            COUNTIF(tipo_publico = 'Puerperio' AND DATE_DIFF(fim, inicio, DAY) != 45) AS puerperio_diferente_45
-        FROM `{PROJECT}.projeto_pic.publico_alvo`
-    """
-    r = (executar_query(sql, cache_key="alerta_janelas", ttl=settings.CACHE_TTL_SEGUNDOS) or [{}])[0]
-    invalida = int(r.get("gestacao_duracao_invalida") or 0)
-    acima = int(r.get("gestacao_acima_300") or 0)
+    janelas = get_janelas_temporais()  # reutiliza cache_key="pop_janelas"
+    invalida = janelas["gestacao"]["duracao_zero_negativa"]
+    acima = janelas["gestacao"]["acima_300_dias"]
     if invalida > 0 or acima > 0:
         return [{
             "id": "JANELA_GESTACAO",
@@ -103,15 +98,9 @@ def _check_janelas() -> list[dict]:
 
 
 def _check_datas() -> list[dict]:
-    sql = f"""
-        SELECT
-            COUNTIF(data_evento > CURRENT_DATE()) AS eventos_futuro,
-            COUNTIF(distancia_dias < 0) AS distancia_negativa
-        FROM `{PROJECT}.projeto_pic.eventos`
-    """
-    r = (executar_query(sql, cache_key="alerta_datas", ttl=settings.CACHE_TTL_SEGUNDOS) or [{}])[0]
-    futuro = int(r.get("eventos_futuro") or 0)
-    distancia = int(r.get("distancia_negativa") or 0)
+    consist = get_consistencia_datas()  # reutiliza cache_key="eventos_counters"
+    futuro = consist["eventos_futuro"]
+    distancia = consist["distancia_dias_negativa"]
     if futuro > 0 or distancia > 0:
         return [{
             "id": "DATA_INCONSISTENCIA",
@@ -130,12 +119,13 @@ def _check_overlap() -> list[dict]:
     sql = f"""
         SELECT COUNT(*) AS total
         FROM (
-            SELECT cpf, COUNT(DISTINCT tipo_publico) AS n
+            SELECT cpf, COUNT(DISTINCT tipo_publico) AS n_segmentos
             FROM `{PROJECT}.projeto_pic.publico_alvo`
-            GROUP BY cpf HAVING n > 1
+            GROUP BY cpf
+            HAVING n_segmentos > 1
         )
     """
-    rows = executar_query(sql, cache_key="alerta_overlap", ttl=settings.CACHE_TTL_SEGUNDOS)
+    rows = executar_query(sql, cache_key="pop_overlap", ttl=settings.CACHE_TTL_SEGUNDOS)
     n = int(rows[0]["total"]) if rows else 0
     if n > 0:
         return [{

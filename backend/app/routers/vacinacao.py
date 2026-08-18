@@ -155,6 +155,7 @@ def get_sequencia_pentavalente():
         WHERE
             vacina_dose = '3ª Dose'
             AND LOWER(vacina_nome) LIKE '%pentavalente%'
+            AND particao_registro_vacinacao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 7 YEAR), MONTH)
         ORDER BY vacina_nome
     """
     nomes_rows = executar_query(sql_nomes, cache_key="pentavalente_nomes", ttl=settings.CACHE_TTL_SEGUNDOS)

@@ -1,26 +1,22 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, StatCard } from "@/components/ui/Card";
-import { SeveridadeBadge, StatusDot } from "@/components/ui/Badge";
+import { SeveridadeBadge } from "@/components/ui/Badge";
 import { FreshnessBar } from "@/components/ui/FreshnessBar";
 import { ApiErrorCard } from "@/components/ui/ApiErrorCard";
-import { MultiLineChart } from "@/components/charts/LineChart";
 import { api } from "@/lib/api/client";
-import { Users, Activity, Bell, Database, Zap } from "lucide-react";
+import { Users, Bell, Database, Zap } from "lucide-react";
 import { SobreposicaoModal } from "@/components/ui/SobreposicaoModal";
+import { SerieChartAsync } from "./SerieChartAsync";
+import { AlertasAsync } from "./AlertasAsync";
 
 export default async function VisaoGeralPage() {
-  const [fontesReal, modelosReal, popReal, serieReal, alertasReal] = await Promise.all([
+  const [fontesReal, modelosReal, popReal] = await Promise.all([
     api.fontes.status(),
     api.fontes.modelos(),
     api.populacao.atual(),
-    api.populacao.serie(30),
-    api.alertas.lista(),
   ]);
 
-  const alertasAtivos = alertasReal?.filter((a) => !a.investigado) ?? [];
-  const criticos = alertasAtivos.filter((a) => a.severidade === "critico").length;
-  const alertasCount = alertasAtivos.filter((a) => a.severidade === "alerta").length;
-  const avisos = alertasAtivos.filter((a) => a.severidade === "aviso").length;
   const fontesComProblema = fontesReal?.filter((f) => f.severidade !== "ok").length ?? 0;
   const modelosComProblema = modelosReal?.filter((m) => m.severidade !== "ok").length ?? 0;
 
@@ -45,8 +41,8 @@ export default async function VisaoGeralPage() {
         />
         <StatCard
           label="Alertas críticos"
-          value={alertasReal ? criticos : "—"}
-          sub={alertasReal ? `${alertasCount} alertas · ${avisos} avisos` : "API indisponível"}
+          value="—"
+          sub="Ver alertas abaixo"
           icon={<Bell className="w-5 h-5" />}
           color="red"
         />
@@ -68,21 +64,14 @@ export default async function VisaoGeralPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Evolução população */}
-        <Card title="Evolução da população-alvo (30 dias)" className="lg:col-span-2" tooltip="Novas entradas por dia em cada segmento nos últimos 30 dias, agrupadas pela data de início da janela de monitoramento. Não representa o total acumulado da população.">
-          {serieReal ? (
-            <MultiLineChart
-              data={serieReal}
-              lines={[
-                { key: "gestacao", label: "Gestação", color: "#8b5cf6" },
-                { key: "puerperio", label: "Puerpério", color: "#ec4899" },
-                { key: "infancia", label: "Infância", color: "#3b82f6" },
-              ]}
-              height={220}
-            />
-          ) : (
-            <ApiErrorCard />
-          )}
-        </Card>
+        <Suspense fallback={
+          <div className="lg:col-span-2 rounded-2xl border border-gray-100 bg-white p-5">
+            <div className="h-4 w-56 bg-gray-100 rounded animate-pulse mb-4" />
+            <div className="h-[220px] bg-gray-50 rounded-xl animate-pulse" />
+          </div>
+        }>
+          <SerieChartAsync />
+        </Suspense>
 
         {/* Segmentos */}
         <Card title="Segmentos atuais" tooltip="Distribuição atual da população-alvo entre os três segmentos monitorados: gestação, puerpério e infância.">
@@ -209,33 +198,22 @@ export default async function VisaoGeralPage() {
           </Card>
 
           {/* Alertas recentes */}
-          <Card title="Alertas ativos recentes" padding={false} tooltip="Regras automáticas que detectaram anomalias nos dados: queda de volume, inconsistência entre fontes ou campos inválidos.">
-            {alertasReal ? (
-              <>
-                <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
-                  {alertasAtivos.slice(0, 6).map((a) => (
-                    <div key={a.id} className="px-5 py-3 flex items-start gap-3">
-                      <StatusDot severidade={a.severidade} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-500 uppercase">{a.categoria}</p>
-                        <p className="text-sm text-gray-800 mt-0.5 leading-snug">{a.descricao}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {alertasAtivos.length === 0 && (
-                    <p className="px-5 py-4 text-sm text-gray-400">Nenhum alerta ativo.</p>
-                  )}
+          <Suspense fallback={
+            <div className="rounded-2xl border border-gray-100 bg-white p-5">
+              <div className="h-4 w-44 bg-gray-100 rounded animate-pulse mb-4" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex gap-3 py-3 border-b border-gray-50">
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-200 mt-0.5 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-2.5 w-20 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+                  </div>
                 </div>
-                <div className="px-5 py-3 border-t border-gray-100">
-                  <a href="/alertas" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                    Ver todos os alertas →
-                  </a>
-                </div>
-              </>
-            ) : (
-              <div className="p-4"><ApiErrorCard /></div>
-            )}
-          </Card>
+              ))}
+            </div>
+          }>
+            <AlertasAsync />
+          </Suspense>
         </div>
       </div>
     </div>

@@ -1,11 +1,12 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, StatCard } from "@/components/ui/Card";
 import { ApiErrorCard } from "@/components/ui/ApiErrorCard";
 import { MultiLineChart } from "@/components/charts/LineChart";
-import { MultiBarChart } from "@/components/charts/BarChart";
-import { EventoSegmentoTable } from "@/components/tables/EventoSegmentoTable";
 import { api } from "@/lib/api/client";
-import { Activity, AlertTriangle } from "lucide-react";
+import { Activity } from "lucide-react";
+import { CoberturaAsync } from "./CoberturaAsync";
+import { DetalheAsync } from "./DetalheAsync";
 
 const TIPO_COLORS: Record<string, string> = {
   consulta: "#3b82f6",
@@ -19,13 +20,7 @@ const TIPO_COLORS: Record<string, string> = {
 };
 
 export default async function EventosPage() {
-  const [serieReal, coberturaReal, consistenciaReal, eventoSegReal, completudeReal] = await Promise.all([
-    api.eventos.serie(30),
-    api.eventos.cobertura(),
-    api.eventos.consistenciaDatas(),
-    api.eventos.eventoSegmento(),
-    api.eventos.completude(),
-  ]);
+  const serieReal = await api.eventos.serie(30);
 
   const totais = serieReal
     ? serieReal.reduce(
@@ -40,16 +35,6 @@ export default async function EventosPage() {
       )
     : null;
 
-  const cobertura = coberturaReal
-    ? {
-        gestacao: coberturaReal.find((c) => c.segmento === "Gestacao"),
-        puerperio: coberturaReal.find((c) => c.segmento === "Puerperio"),
-        infancia: coberturaReal.find((c) => c.segmento === "Infancia"),
-      }
-    : null;
-
-  const incompatíveis = eventoSegReal?.filter((e) => !e.compativel) ?? [];
-
   return (
     <div>
       <Header
@@ -61,8 +46,8 @@ export default async function EventosPage() {
         <StatCard label="Consultas (30d)" value={totais?.consulta ?? "—"} icon={<Activity className="w-5 h-5" />} color="blue" />
         <StatCard label="Visitas dom. (30d)" value={totais?.visita ?? "—"} icon={<Activity className="w-5 h-5" />} color="green" />
         <StatCard label="Testes rápidos (30d)" value={totais?.testes ?? "—"} icon={<Activity className="w-5 h-5" />} color="purple" />
-        <StatCard label="Vacinas D3 (30d)" value={totais?.vacina ?? "—"} icon={<Activity className="w-5 h-5" />} color="orange" />
-        <StatCard label="Diagnósticos (30d)" value={totais?.diagnostico ?? "—"} icon={<Activity className="w-5 h-5" />} color="red" />
+        <StatCard label="Vacinas Pentavalente - Dose 3 (30d)" value={totais?.vacina ?? "—"} icon={<Activity className="w-5 h-5" />} color="orange" />
+        <StatCard label="Diagnósticos de IST (30d)" value={totais?.diagnostico ?? "—"} icon={<Activity className="w-5 h-5" />} color="red" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -100,130 +85,35 @@ export default async function EventosPage() {
       </div>
 
       {/* Cobertura */}
-      <Card title="Cobertura de eventos por segmento (RF-05)" className="mb-6" tooltip="Percentual da população-alvo com ao menos um evento registrado (consulta, visita ou teste). Meta recomendada: ≥ 85%.">
-        {cobertura && cobertura.gestacao && cobertura.puerperio && cobertura.infancia ? (
+      <Suspense fallback={
+        <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-5">
+          <div className="h-4 w-64 bg-gray-100 rounded animate-pulse mb-4" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {[
-              { label: "Gestação", data: cobertura.gestacao },
-              { label: "Puerpério", data: cobertura.puerperio },
-              { label: "Infância", data: cobertura.infancia },
-            ].map((seg) => (
-              <div key={seg.label} className="border border-gray-100 rounded-xl p-4">
-                <p className="text-sm font-semibold text-gray-700 mb-3">{seg.label}</p>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-500">Com evento</span>
-                  <span className="font-bold text-gray-800">{seg.data.com_evento.toLocaleString("pt-BR")}</span>
+            {[0, 1, 2].map((i) => <div key={i} className="h-32 bg-gray-50 rounded-xl border border-gray-100 animate-pulse" />)}
+          </div>
+        </div>
+      }>
+        <CoberturaAsync />
+      </Suspense>
+
+      {/* Consistência, completude e compatibilidade */}
+      <Suspense fallback={
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[0, 1].map((i) => (
+              <div key={i} className="rounded-2xl border border-gray-100 bg-white p-5">
+                <div className="h-4 w-48 bg-gray-100 rounded animate-pulse mb-4" />
+                <div className="space-y-2">
+                  {Array.from({ length: 6 }).map((_, j) => <div key={j} className="h-10 bg-gray-50 rounded-lg border border-gray-100 animate-pulse" />)}
                 </div>
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden mb-1">
-                  <div
-                    className="h-full bg-green-500 rounded-full"
-                    style={{ width: `${seg.data.cobertura_pct}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mb-3">
-                  <span>{seg.data.cobertura_pct}% com pelo menos 1 evento</span>
-                  <span>{seg.data.sem_evento.toLocaleString("pt-BR")} sem evento</span>
-                </div>
-                {seg.data.cobertura_pct < 85 && (
-                  <div className="flex items-center gap-1.5 text-xs text-orange-700 bg-orange-50 rounded-lg px-2.5 py-1.5">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span>Cobertura abaixo de 85%</span>
-                  </div>
-                )}
               </div>
             ))}
           </div>
-        ) : (
-          <ApiErrorCard />
-        )}
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Consistência de datas */}
-        <Card title="Consistência das datas (RF-06)" tooltip="Eventos com datas inválidas: no futuro, anteriores ao nascimento da paciente ou fora da janela de monitoramento esperada.">
-          {consistenciaReal ? (
-            <div className="space-y-3">
-              {[
-                { label: "Eventos com data no futuro", key: "eventos_futuro" },
-                { label: "Eventos anteriores ao nascimento", key: "eventos_antes_nascimento" },
-                { label: "Consultas puerperais antes do parto", key: "consultas_puerperais_antes_parto" },
-                { label: "Eventos fora da janela (total)", key: "eventos_fora_janela", ok: true },
-                { label: "Fora de janela — previsto pelas regras", key: "eventos_fora_janela_esperado", ok: true },
-                { label: "Fora de janela — possível anomalia", key: "eventos_fora_janela_anomalia" },
-              ].map((item) => {
-                const value = (consistenciaReal as Record<string, number>)[item.key] ?? 0;
-                const isOk = item.ok ?? false;
-                return (
-                  <div key={item.label} className={`flex items-center justify-between p-3 rounded-lg border ${!isOk && value > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-100"}`}>
-                    <span className="text-sm text-gray-700">{item.label}</span>
-                    <span className={`text-sm font-bold ${!isOk && value > 0 ? "text-red-600" : "text-gray-800"}`}>
-                      {value.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <ApiErrorCard />
-          )}
-        </Card>
-
-        {/* Completude da saída */}
-        <Card title="Completude dos campos de saída (RF-18)" tooltip="Campos obrigatórios nos registros de eventos exportados que estão nulos ou inválidos. Qualquer valor acima de 0 indica problema na saída.">
-          {completudeReal ? (
-            <div className="space-y-3">
-              {[
-                { label: "tipo_publico nulo", key: "tipo_publico_nulo" },
-                { label: "tipo_evento nulo", key: "tipo_evento_nulo" },
-                { label: "data_evento nula", key: "data_evento_nula" },
-                { label: "cpf nulo", key: "cpf_nulo" },
-                { label: "distancia_dias nula", key: "distancia_dias_nula" },
-                { label: "distancia_dias negativa", key: "distancia_dias_negativa" },
-                { label: "inicio_fase nulo", key: "inicio_fase_nulo" },
-              ].map((item) => {
-                const value = (completudeReal as Record<string, number>)[item.key] ?? 0;
-                return (
-                  <div key={item.label} className={`flex items-center justify-between p-2.5 rounded-lg border text-sm ${value > 0 ? "bg-yellow-50 border-yellow-200" : "bg-green-50 border-green-100"}`}>
-                    <span className="font-mono text-xs text-gray-700">{item.label}</span>
-                    <span className={`font-bold ${value > 0 ? "text-yellow-700" : "text-green-700"}`}>
-                      {value === 0 ? "✓ 0" : value.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <ApiErrorCard />
-          )}
-        </Card>
-      </div>
-
-      {/* Evento x Segmento */}
-      <Card title="Compatibilidade de eventos por segmento (RF-16)" subtitle="Detecta eventos registrados para o segmento errado" tooltip="Sinaliza quando um tipo de evento não deveria ser aplicado àquele segmento. Ex: vacina pentavalente D3 (exclusiva de crianças) registrada para gestante ou puerpério. Qualquer linha 'Improvável' indica possível erro de cadastro.">
-        {eventoSegReal ? (
-          <>
-            {/* Resumo de status */}
-            <div className="flex gap-3 mb-4">
-              {incompatíveis.length > 0 ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                  <span className="text-sm text-red-700 font-medium">
-                    {incompatíveis.length} {incompatíveis.length > 1 ? "combinações improváveis detectadas" : "combinação improvável detectada"}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                  <span className="text-green-600 text-sm font-medium">✓ Todas as combinações são compatíveis</span>
-                </div>
-              )}
-            </div>
-
-            <EventoSegmentoTable rows={eventoSegReal} />
-          </>
-        ) : (
-          <ApiErrorCard />
-        )}
-      </Card>
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 h-48 animate-pulse" />
+        </div>
+      }>
+        <DetalheAsync />
+      </Suspense>
 
       {/* Regras de compatibilidade */}
       <Card title="Regras de compatibilidade evento × segmento" className="mt-6" tooltip="Matriz estática definida no backend (RF-16). Combinações marcadas com ✗ são sinalizadas como 'Improvável' na tabela acima.">

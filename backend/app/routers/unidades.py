@@ -45,6 +45,7 @@ def get_unidades():
             FROM `{PROJECT}.brutos_prontuario_vitacare.atendimento`
             WHERE
                 cpf IS NOT NULL
+                AND data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY)
                 AND DATE(datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
             GROUP BY cnes_unidade
         ),
@@ -55,6 +56,7 @@ def get_unidades():
             FROM `{PROJECT}.brutos_prontuario_vitacare.atendimento`
             WHERE
                 cpf IS NOT NULL
+                AND data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL 29 DAY)
                 AND DATE(datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)
                 AND DATE(datahora_inicio) < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
             GROUP BY cnes_unidade
