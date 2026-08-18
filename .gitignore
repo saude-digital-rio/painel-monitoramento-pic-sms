@@ -1,0 +1,36 @@
+# Credenciais Google Cloud — NUNCA versionar
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+application_default_credentials.json
+service_account*.json
+*-credentials.json
+*-key.json
+gcloud/
+
+# Variáveis de ambiente locais
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

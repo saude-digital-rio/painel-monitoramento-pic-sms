@@ -1,0 +1,31 @@
+# Ambientes, caches e artefatos Python
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+coverage
+htmlcov
+
+# Variaveis locais, credenciais e logs
+.env
+.env.*
+*.log
+*.pem
+*.key
+*-credentials.json
+*-key.json
+application_default_credentials.json
+gcloud
+
+# Metadados e arquivos fora da imagem de execucao
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+README.md
+teste_conexao.py

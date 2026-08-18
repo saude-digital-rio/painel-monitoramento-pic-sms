@@ -1,0 +1,28 @@
+# Dependencias e artefatos gerados localmente
+node_modules
+.next
+out
+coverage
+
+# Variaveis locais, credenciais e logs
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.pem
+*.key
+*-credentials.json
+*-key.json
+application_default_credentials.json
+
+# Metadados e arquivos do ambiente de desenvolvimento
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+AGENTS.md
+README.md
+
