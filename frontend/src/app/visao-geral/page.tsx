@@ -6,6 +6,7 @@ import { ApiErrorCard } from "@/components/ui/ApiErrorCard";
 import { MultiLineChart } from "@/components/charts/LineChart";
 import { api } from "@/lib/api/client";
 import { Users, Activity, Bell, Database, Zap } from "lucide-react";
+import { SobreposicaoModal } from "@/components/ui/SobreposicaoModal";
 
 export default async function VisaoGeralPage() {
   const [fontesReal, modelosReal, popReal, serieReal, alertasReal] = await Promise.all([
@@ -109,11 +110,7 @@ export default async function VisaoGeralPage() {
                 );
               })}
               {popReal.cpf_sobreposicao > 0 && (
-                <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-xs text-yellow-800 font-medium">
-                    ⚠ {popReal.cpf_sobreposicao} CPFs em mais de um segmento
-                  </p>
-                </div>
+                <SobreposicaoModal count={popReal.cpf_sobreposicao} />
               )}
             </div>
           ) : (
@@ -130,7 +127,12 @@ export default async function VisaoGeralPage() {
               {fontesReal.map((fonte) => (
                 <div key={fonte.tabela} className="px-5 py-3.5">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{fonte.nome}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{fonte.nome}</p>
+                      {fonte.cadencia === "mensal" && (
+                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 font-medium">mensal</span>
+                      )}
+                    </div>
                     <SeveridadeBadge severidade={fonte.severidade} />
                   </div>
                   <div className="flex flex-col gap-y-0.5 mb-1.5">

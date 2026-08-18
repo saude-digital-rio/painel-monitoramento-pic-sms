@@ -64,6 +64,23 @@ def get_populacao_atual():
     }
 
 
+@router.get("/sobreposicao")
+def get_sobreposicao():
+    """Lista CPFs presentes em mais de um segmento (gestação, puerpério, infância)."""
+    sql = f"""
+        SELECT
+            cpf,
+            ARRAY_AGG(DISTINCT tipo_publico ORDER BY tipo_publico) AS segmentos
+        FROM `{PROJECT}.projeto_pic.publico_alvo`
+        GROUP BY cpf
+        HAVING COUNT(DISTINCT tipo_publico) > 1
+        ORDER BY cpf
+        LIMIT 500
+    """
+    rows = executar_query(sql, cache_key="pop_sobreposicao", ttl=settings.CACHE_TTL_SEGUNDOS)
+    return rows or []
+
+
 @router.get("/serie")
 def get_serie_populacao(dias: int = Query(default=30, ge=7, le=365)):
     """

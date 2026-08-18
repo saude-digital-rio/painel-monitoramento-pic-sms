@@ -158,6 +158,7 @@ def _check_penta() -> list[dict]:
             FROM `{PROJECT}.registro_vacinal.vacinacao`
             WHERE
                 LOWER(vacina_nome) LIKE '%pentavalente%'
+                AND particao_registro_vacinacao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 7 YEAR), MONTH)
                 AND vacina_aplicacao_data IS NOT NULL
                 AND vacina_registro_tipo IN ('Administração', 'Registro de aplicação anterior')
             GROUP BY paciente_cpf, vacina_dose

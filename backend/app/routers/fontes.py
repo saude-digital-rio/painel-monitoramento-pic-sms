@@ -28,10 +28,13 @@ logger = logging.getLogger(__name__)
 LIMITE_AVISO_HORAS = 24
 LIMITE_ALERTA_HORAS = 48
 LIMITE_CRITICO_HORAS = 72
+LIMITE_MENSAL_HORAS = 31 * 24  # 744h — backup mensal esperado
 VARIACAO_CRITICO_PCT = 10.0
 
 
-def _severidade_freshness(horas: float) -> str:
+def _severidade_freshness(horas: float, cadencia: str = "diaria") -> str:
+    if cadencia == "mensal":
+        return "ok" if horas < LIMITE_MENSAL_HORAS else "critico"
     if horas < LIMITE_AVISO_HORAS:
         return "ok"
     if horas < LIMITE_ALERTA_HORAS:
@@ -104,6 +107,7 @@ def _buscar_volume_hist_7d(dataset: str, table_id: str) -> float | None:
 
 def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     """Busca metadata + histórico de uma fonte. Roda em paralelo."""
+    cadencia = cfg.get("cadencia", "diaria")
     meta = _buscar_tabela_metadata(cfg["dataset"], cfg["table_id"])
 
     if not meta:
@@ -112,6 +116,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
             "tabela": cfg["tabela"],
             "dataset": cfg["dataset"],
             "table_id": cfg["table_id"],
+            "cadencia": cadencia,
             "ultima_atualizacao": None,
             "volume": None,
             "variacao_pct": None,
@@ -133,7 +138,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     if media_7d and media_7d > 0:
         variacao_pct = round((volume - media_7d) / media_7d * 100, 2)
 
-    sev_fresh = _severidade_freshness(horas)
+    sev_fresh = _severidade_freshness(horas, cadencia)
     sev_vol = "ok" if variacao_pct is None else _severidade_volume(variacao_pct)
     severidade = _pior_severidade(sev_fresh, sev_vol)
 
@@ -142,6 +147,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "tabela": cfg["tabela"],
         "dataset": cfg["dataset"],
         "table_id": cfg["table_id"],
+        "cadencia": cadencia,
         "ultima_atualizacao": last_mod.isoformat(),
         "volume": volume,
         "variacao_pct": variacao_pct,
@@ -178,6 +184,7 @@ def get_status_fontes():
                     "tabela": cfg["tabela"],
                     "dataset": cfg["dataset"],
                     "table_id": cfg["table_id"],
+                    "cadencia": cfg.get("cadencia", "diaria"),
                     "ultima_atualizacao": None,
                     "volume": None,
                     "variacao_pct": None,

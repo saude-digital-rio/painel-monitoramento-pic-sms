@@ -46,6 +46,7 @@ def get_serie_vacinacao(semanas: int = Query(default=12, ge=1, le=52)):
         WHERE
             vacina_dose = '3ª Dose'
             AND LOWER(vacina_nome) LIKE '%pentavalente%'
+            AND particao_registro_vacinacao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL {semanas // 4 + 2} MONTH), MONTH)
             AND vacina_registro_data >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
         GROUP BY semana, origem
         ORDER BY semana
@@ -106,6 +107,7 @@ def get_sequencia_pentavalente():
             FROM `{PROJECT}.registro_vacinal.vacinacao`
             WHERE
                 LOWER(vacina_nome) LIKE '%pentavalente%'
+                AND particao_registro_vacinacao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 7 YEAR), MONTH)
                 AND vacina_aplicacao_data IS NOT NULL
                 AND vacina_registro_tipo IN ('Administração', 'Registro de aplicação anterior')
             GROUP BY paciente_cpf, vacina_dose
@@ -199,6 +201,8 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
             ON p.id_prontuario_global = a.id_prontuario_global
         WHERE
             p.co_procedimento IN ('0214010058','0214010040','0214010074','0214010082','0214010090','0214010104')
+            AND p.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
+            AND a.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
             AND DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
         GROUP BY semana, tipo
     """
@@ -214,7 +218,10 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
         FROM `{PROJECT}.brutos_prontuario_vitacare_historico.teste_rapido` t
         JOIN `{PROJECT}.brutos_prontuario_vitacare_historico.acto` a
             ON t.id_prontuario_global = a.id_prontuario_global
-        WHERE DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
+        WHERE
+            t.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
+            AND a.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
+            AND DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
         GROUP BY semana
         ORDER BY semana
     """
@@ -273,6 +280,7 @@ def get_cobertura_d3():
             AND LOWER(v.vacina_nome) LIKE '%pentavalente%'
             AND v.vacina_registro_tipo IN ('Administração', 'Registro de aplicação anterior')
             AND v.vacina_aplicacao_data IS NOT NULL
+            AND v.particao_registro_vacinacao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 7 YEAR), MONTH)
         WHERE pa.tipo_publico = 'Infancia'
     """
     rows = executar_query(sql, cache_key="vac_cobertura_d3", ttl=settings.CACHE_TTL_SEGUNDOS)
@@ -311,6 +319,8 @@ def get_divergencia_testes():
             ON p.id_prontuario_global = a.id_prontuario_global
         WHERE
             p.co_procedimento IN ('0214010058','0214010040','0214010074','0214010082','0214010090','0214010104')
+            AND p.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
+            AND a.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
             AND DATE(a.datahora_inicio) BETWEEN
                 DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK), WEEK)
                 AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK), INTERVAL 1 DAY)
@@ -325,9 +335,12 @@ def get_divergencia_testes():
         FROM `{PROJECT}.brutos_prontuario_vitacare_historico.teste_rapido` t
         JOIN `{PROJECT}.brutos_prontuario_vitacare_historico.acto` a
             ON t.id_prontuario_global = a.id_prontuario_global
-        WHERE DATE(a.datahora_inicio) BETWEEN
-            DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK), WEEK)
-            AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK), INTERVAL 1 DAY)
+        WHERE
+            t.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
+            AND a.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
+            AND DATE(a.datahora_inicio) BETWEEN
+                DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK), WEEK)
+                AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK), INTERVAL 1 DAY)
     """
     proc_rows = executar_query(sql_proc, cache_key="diverg_proc", ttl=settings.CACHE_TTL_SEGUNDOS)
     tr_rows = executar_query(sql_tr, cache_key="diverg_tr", ttl=settings.CACHE_TTL_SEGUNDOS)

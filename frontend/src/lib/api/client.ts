@@ -35,6 +35,7 @@ export interface FonteStatusAPI {
   tabela: string;
   dataset: string;
   table_id: string;
+  cadencia: "diaria" | "mensal";
   ultima_atualizacao: string | null;
   volume: number | null;
   variacao_pct: number | null;
@@ -200,6 +201,7 @@ export const api = {
     entradasSaidas: (semanas = 12) => get<EntradaSaidaAPI[]>(`/populacao/entradas-saidas?semanas=${semanas}`),
     gestacoes: () => get<GestacaoMonitoramentoAPI>("/populacao/gestacoes"),
     cadastro: () => get<CadastroQualidadeAPI>("/populacao/cadastro"),
+    sobreposicao: () => get<{ cpf: string; segmentos: string[] }[]>("/populacao/sobreposicao"),
   },
   eventos: {
     serie: (dias = 30) => get<SerieEventoAPI[]>(`/eventos/serie?dias=${dias}`),
