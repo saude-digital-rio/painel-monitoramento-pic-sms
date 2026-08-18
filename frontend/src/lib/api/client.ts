@@ -15,7 +15,7 @@ const API_URL =
 async function get<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}/api${path}`, {
-      next: { revalidate: 300 }, // ISR 5 min
+      cache: "no-store",
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
@@ -33,6 +33,8 @@ export type Severidade = "critico" | "alerta" | "aviso" | "ok";
 export interface FonteStatusAPI {
   nome: string;
   tabela: string;
+  dataset: string;
+  table_id: string;
   ultima_atualizacao: string | null;
   volume: number | null;
   variacao_pct: number | null;

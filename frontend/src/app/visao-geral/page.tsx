@@ -128,26 +128,37 @@ export default async function VisaoGeralPage() {
           {fontesReal ? (
             <div className="divide-y divide-gray-50">
               {fontesReal.map((fonte) => (
-                <div key={fonte.tabela} className="px-5 py-3 flex items-start gap-3">
-                  <StatusDot severidade={fonte.severidade} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{fonte.nome}</p>
-                    {fonte.ultima_atualizacao && fonte.horas_sem_atualizacao !== null ? (
-                      <FreshnessBar
-                        horas={fonte.horas_sem_atualizacao}
-                        severidade={fonte.severidade}
-                        ultimaAtualizacao={fonte.ultima_atualizacao}
-                      />
-                    ) : (
-                      <p className="text-xs text-gray-400">{fonte.erro ?? "Sem dados"}</p>
-                    )}
-                    {fonte.variacao_pct !== null && Math.abs(fonte.variacao_pct) > 10 && (
-                      <p className={`text-xs mt-0.5 ${fonte.variacao_pct < 0 ? "text-red-600" : "text-green-600"}`}>
-                        Variação: {fonte.variacao_pct > 0 ? "+" : ""}{fonte.variacao_pct.toFixed(1)}% vs média 7d
-                      </p>
+                <div key={fonte.tabela} className="px-5 py-3.5">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{fonte.nome}</p>
+                    <SeveridadeBadge severidade={fonte.severidade} />
+                  </div>
+                  <div className="flex flex-col gap-y-0.5 mb-1.5">
+                    <span className="text-[11px] text-gray-400 font-mono truncate">
+                      <span className="text-gray-300 select-none">Modelo </span>{fonte.tabela}
+                    </span>
+                    {fonte.dataset && fonte.table_id && (
+                      <span className="text-[11px] font-mono truncate">
+                        <span className="text-gray-300 select-none">Tabela </span>
+                        <span className="text-gray-400">{fonte.dataset}.</span>
+                        <span className="text-gray-600 font-medium">{fonte.table_id}</span>
+                      </span>
                     )}
                   </div>
-                  <SeveridadeBadge severidade={fonte.severidade} />
+                  {fonte.ultima_atualizacao && fonte.horas_sem_atualizacao !== null ? (
+                    <FreshnessBar
+                      horas={fonte.horas_sem_atualizacao}
+                      severidade={fonte.severidade}
+                      ultimaAtualizacao={fonte.ultima_atualizacao}
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-400">{fonte.erro ?? "Sem dados"}</p>
+                  )}
+                  {fonte.variacao_pct !== null && Math.abs(fonte.variacao_pct) > 10 && (
+                    <p className={`text-xs mt-0.5 ${fonte.variacao_pct < 0 ? "text-red-600" : "text-green-600"}`}>
+                      Variação: {fonte.variacao_pct > 0 ? "+" : ""}{fonte.variacao_pct.toFixed(1)}% vs média 7d
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

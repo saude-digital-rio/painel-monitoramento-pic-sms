@@ -110,6 +110,8 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         return {
             "nome": cfg["nome"],
             "tabela": cfg["tabela"],
+            "dataset": cfg["dataset"],
+            "table_id": cfg["table_id"],
             "ultima_atualizacao": None,
             "volume": None,
             "variacao_pct": None,
@@ -138,6 +140,8 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     return {
         "nome": cfg["nome"],
         "tabela": cfg["tabela"],
+        "dataset": cfg["dataset"],
+        "table_id": cfg["table_id"],
         "ultima_atualizacao": last_mod.isoformat(),
         "volume": volume,
         "variacao_pct": variacao_pct,
@@ -172,6 +176,8 @@ def get_status_fontes():
                 resultado[idx] = {
                     "nome": cfg["nome"],
                     "tabela": cfg["tabela"],
+                    "dataset": cfg["dataset"],
+                    "table_id": cfg["table_id"],
                     "ultima_atualizacao": None,
                     "volume": None,
                     "variacao_pct": None,
