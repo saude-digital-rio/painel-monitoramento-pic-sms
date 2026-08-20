@@ -7,7 +7,7 @@ export async function SerieChartAsync() {
   const serieReal = await api.populacao.serie(30);
   return (
     <Card
-      title="Evolução da população-alvo (30 dias)"
+      title="Entradas na população-alvo (30 dias)"
       className="lg:col-span-2"
       tooltip="Novas entradas por dia em cada segmento nos últimos 30 dias, agrupadas pela data de início da janela de monitoramento. Não representa o total acumulado da população."
     >

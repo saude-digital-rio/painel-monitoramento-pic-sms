@@ -51,6 +51,7 @@ export interface FonteStatusAPI {
 export interface ExecucaoModeloAPI {
   modelo: string;
   ultima_execucao: string | null;
+  ultimo_dado: string | null;
   intervalo_horas: number;
   volume_atual: number;
   severidade: "ok" | "aviso" | "alerta" | "critico";

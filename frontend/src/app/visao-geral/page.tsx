@@ -74,7 +74,7 @@ export default async function VisaoGeralPage() {
         </Suspense>
 
         {/* Segmentos */}
-        <Card title="Segmentos atuais" tooltip="Distribuição atual da população-alvo entre os três segmentos monitorados: gestação, puerpério e infância.">
+        <Card title="Segmentos atuais" tooltip="Contagem de registros ativos por segmento em publico_alvo. A porcentagem é calculada sobre a soma das três linhas, não sobre CPFs únicos — um mesmo CPF pode aparecer em mais de um segmento simultaneamente (ex: gestante com filho na janela de infância). O campo 'CPFs em mais de um segmento' indica quantas pessoas estão nessa situação.">
           {popReal ? (
             <div className="space-y-4">
               {[
@@ -94,7 +94,7 @@ export default async function VisaoGeralPage() {
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full ${seg.color} rounded-full`} style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">{pct}% do total</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{pct}% do total do público alvo</p>
                   </div>
                 );
               })}

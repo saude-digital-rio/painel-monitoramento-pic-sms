@@ -277,10 +277,14 @@ def get_status_fontes():
 
 def _processar_modelo(cfg: dict) -> dict:
     """Consulta metadata de um modelo dbt. Roda em paralelo."""
+    campo_data = cfg.get("campo_data")
+    max_data_clause = f", MAX({campo_data}) AS ultimo_dado" if campo_data else ""
+
     sql = f"""
         SELECT
             MAX(metadados.ultima_atualizacao) AS ultima_atualizacao,
             COUNT(*) AS volume
+            {max_data_clause}
         FROM `{PROJECT}.{cfg["dataset"]}.{cfg["table_id"]}`
     """
     rows = executar_query(
@@ -293,6 +297,7 @@ def _processar_modelo(cfg: dict) -> dict:
         return {
             "modelo": cfg["modelo"],
             "ultima_execucao": None,
+            "ultimo_dado": None,
             "volume_atual": 0,
             "severidade": "alerta",
             "erro": "Sem dados",
@@ -307,11 +312,15 @@ def _processar_modelo(cfg: dict) -> dict:
     volume = int(rows[0]["volume"])
     sev = "critico" if intervalo_horas > 25 else "ok"
 
+    ultimo_dado = rows[0].get("ultimo_dado")
+    ultimo_dado_iso = ultimo_dado.isoformat() if ultimo_dado is not None else None
+
     return {
         "modelo": cfg["modelo"],
         "ultima_execucao": ultima_exec.isoformat(),
         "intervalo_horas": round(intervalo_horas, 1),
         "volume_atual": volume,
+        "ultimo_dado": ultimo_dado_iso,
         "severidade": sev,
     }
 

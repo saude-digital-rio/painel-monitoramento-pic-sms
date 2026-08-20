@@ -35,45 +35,41 @@ export default function FontesPage() {
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Modelos de saída (PIC)</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {modelos.map((m) => {
-            const variacaoPct = (m as ExecucaoModeloAPI & { variacao_pct?: number }).variacao_pct ?? 0;
-            return (
-              <div key={m.modelo} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Modelo</p>
-                    <p className="text-sm font-mono font-semibold text-gray-800 mt-0.5 truncate">{m.modelo}</p>
-                  </div>
-                  <SeveridadeBadge severidade={m.severidade} />
+          {modelos.map((m) => (
+            <div key={m.modelo} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Modelo</p>
+                  <p className="text-sm font-mono font-semibold text-gray-800 mt-0.5 truncate">{m.modelo}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Última execução</p>
-                    <p className="font-semibold text-gray-800 mt-0.5">
-                      {m.ultima_execucao ? new Date(m.ultima_execucao).toLocaleString("pt-BR") : "—"}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Intervalo</p>
-                    <p className={`font-semibold mt-0.5 ${m.intervalo_horas > 25 ? "text-red-600" : "text-gray-800"}`}>
-                      {m.intervalo_horas.toFixed(1)}h {m.intervalo_horas > 25 && "(⚠ > 25h)"}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Volume atual</p>
-                    <p className="font-semibold text-gray-800 mt-0.5">{m.volume_atual.toLocaleString("pt-BR")}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Variação vs. anterior</p>
-                    <p className={`font-semibold mt-0.5 ${variacaoPct < -5 ? "text-red-600" : "text-green-600"}`}>
-                      {variacaoPct > 0 ? "+" : ""}{variacaoPct.toFixed(2)}%
-                      {variacaoPct < -5 && " ⚠"}
-                    </p>
-                  </div>
+                <SeveridadeBadge severidade={m.severidade} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500">Última execução</p>
+                  <p className="font-semibold text-gray-800 mt-0.5">
+                    {m.ultima_execucao ? new Date(m.ultima_execucao).toLocaleString("pt-BR") : "—"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500">Último dado disponível</p>
+                  <p className="font-semibold text-gray-800 mt-0.5">
+                    {m.ultimo_dado ? new Date(m.ultimo_dado).toLocaleDateString("pt-BR") : "—"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500">Intervalo desde execução</p>
+                  <p className={`font-semibold mt-0.5 ${m.intervalo_horas > 25 ? "text-red-600" : "text-gray-800"}`}>
+                    {m.intervalo_horas.toFixed(1)}h {m.intervalo_horas > 25 && "(⚠ > 25h)"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500">Volume atual</p>
+                  <p className="font-semibold text-gray-800 mt-0.5">{m.volume_atual.toLocaleString("pt-BR")}</p>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -85,7 +81,6 @@ export default function FontesPage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fonte / Tabela</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Volume</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Variação semanal</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Freshness</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               </tr>
@@ -93,12 +88,7 @@ export default function FontesPage() {
             <tbody className="divide-y divide-gray-50">
               {fontes.map((fonte) => {
                 const volume = fonte.volume ?? 0;
-                const variacaoPct = fonte.variacao_pct ?? 0;
                 const horas = fonte.horas_sem_atualizacao ?? 0;
-                let varColor = "text-green-600";
-                if (variacaoPct < -10) varColor = "text-red-600";
-                else if (variacaoPct < -5) varColor = "text-orange-600";
-                else if (variacaoPct > 50) varColor = "text-yellow-600";
                 return (
                   <tr
                     key={fonte.tabela}
@@ -120,9 +110,6 @@ export default function FontesPage() {
                     </td>
                     <td className="px-4 py-3.5 text-right font-mono text-gray-700">
                       {volume.toLocaleString("pt-BR")}
-                    </td>
-                    <td className={`px-4 py-3.5 text-right font-medium ${varColor}`}>
-                      {variacaoPct > 0 ? "+" : ""}{variacaoPct.toFixed(1)}%
                     </td>
                     <td className="px-4 py-3.5">
                       {fonte.ultima_atualizacao ? (

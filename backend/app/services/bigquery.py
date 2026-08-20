@@ -183,10 +183,12 @@ MODEL_CONFIGS = [
         "modelo": "mart_iplanrio_pic__publico_alvo",
         "dataset": "projeto_pic",
         "table_id": "publico_alvo",
+        "campo_data": "inicio",
     },
     {
         "modelo": "mart_iplanrio_pic__eventos",
         "dataset": "projeto_pic",
         "table_id": "eventos",
+        "campo_data": "data_evento",
     },
 ]
