@@ -1,5 +1,5 @@
 """
-RF-12: Alertas computados em tempo real a partir das métricas das outras rotas.
+Alertas computados em tempo real a partir das métricas das outras rotas.
 
 Os alertas são gerados dinamicamente pelas regras definidas nos requisitos.
 Não há banco de dados de alertas — eles são derivados dos dados do BigQuery.
@@ -191,7 +191,7 @@ _CHECKS: list[Callable[[], list[dict]]] = [
 @router.get("")
 def get_alertas():
     """
-    RF-12: Gera lista de alertas ativos com base nas regras de alerta prioritárias.
+    Gera lista de alertas ativos com base nas regras de alerta prioritárias.
     As verificações são executadas em paralelo para reduzir latência.
     """
     alertas: list[dict] = []

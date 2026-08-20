@@ -36,11 +36,13 @@ export interface FonteStatusAPI {
   dataset: string;
   table_id: string;
   cadencia: "diaria" | "mensal";
+  tipo?: "consolidada" | "padrao";
   ultima_atualizacao: string | null;
   volume: number | null;
   volume_atual_7d: number | null;
   variacao_pct: number | null;
   media_7d: number | null;
+  volume_por_origem: Record<string, number> | null;
   horas_sem_atualizacao: number | null;
   severidade: "ok" | "aviso" | "alerta" | "critico";
   erro?: string;

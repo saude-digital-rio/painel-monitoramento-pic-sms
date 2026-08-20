@@ -98,12 +98,14 @@ interface Props {
 export function FonteDetalheModal({ fonte, onClose }: Props) {
   const horas = fonte.horas_sem_atualizacao;
   const mensal = fonte.cadencia === "mensal";
+  const consolidada = fonte.tipo === "consolidada";
+  const semVolumeSev = mensal || consolidada;
   const sfresh = sevFreshness(horas, fonte.cadencia);
-  const svol = mensal ? "ok" : sevVolume(fonte.variacao_pct);
-  const motivo = mensal ? "freshness" : (ORDEM[sfresh] >= ORDEM[svol] ? "freshness" : "volume");
+  const svol = semVolumeSev ? "ok" : sevVolume(fonte.variacao_pct);
+  const motivo = semVolumeSev ? "freshness" : (ORDEM[sfresh] >= ORDEM[svol] ? "freshness" : "volume");
 
   let valorVolumeDiag: string;
-  if (fonte.variacao_pct !== null) {
+  if (!semVolumeSev && fonte.variacao_pct !== null) {
     const sinal = fonte.variacao_pct > 0 ? "+" : "";
     valorVolumeDiag = `Variação semanal: ${sinal}${fonte.variacao_pct.toFixed(1)}%`;
   } else if (fonte.volume !== null) {
@@ -166,7 +168,48 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
           {/* Volume */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Volume</p>
-            {mensal ? (
+            {consolidada ? (
+              <div className="bg-gray-50 rounded-xl p-3">
+                {/* Volume total em destaque */}
+                <div className="flex items-center justify-between pb-3">
+                  <span className="text-xs font-medium text-gray-600">Volume total</span>
+                  <span className="text-xs font-semibold text-gray-800 font-mono">
+                    {fonte.volume !== null ? fonte.volume.toLocaleString("pt-BR") : "—"}
+                  </span>
+                </div>
+
+                {fonte.volume_por_origem && Object.keys(fonte.volume_por_origem).length > 0 && (() => {
+                  const total = fonte.volume ?? 1;
+                  const hist = fonte.volume_por_origem["historico"];
+                  const cont = fonte.volume_por_origem["continuo"];
+                  return (
+                    <>
+                      <div className="border-t border-gray-200 pt-3 mb-2">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Por origem</p>
+                      </div>
+                      {hist !== undefined && (
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-gray-500">Histórico (backup)</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono text-gray-700">{hist.toLocaleString("pt-BR")}</span>
+                            <span className="text-[11px] text-gray-400 w-10 text-right">{(hist / total * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      )}
+                      {cont !== undefined && (
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-gray-500">Contínuo (API)</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono text-gray-700">{cont.toLocaleString("pt-BR")}</span>
+                            <span className="text-[11px] text-gray-400 w-10 text-right">{(cont / total * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : mensal ? (
               <div className="bg-gray-50 rounded-xl p-3 space-y-2">
                 <LinhaInfo label="Volume atual" valor={fonte.volume !== null ? fonte.volume.toLocaleString("pt-BR") : "—"} />
                 <p className="text-xs text-gray-500 leading-relaxed pt-1">

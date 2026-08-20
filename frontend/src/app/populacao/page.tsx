@@ -41,7 +41,7 @@ export default async function PopulacaoPage() {
     <div>
       <Header
         title="População-alvo"
-        subtitle="Volume por segmento, qualidade cadastral, janelas e anomalias (RF-02, RF-03, RF-04, RF-10, RF-11)"
+        subtitle="Volume por segmento, qualidade cadastral, janelas e anomalias"
         dataRef={popReal?.data_referencia ?? undefined}
       />
 
@@ -65,7 +65,7 @@ export default async function PopulacaoPage() {
         </Suspense>
 
         {/* Janelas temporais */}
-        <Card title="Consistência das janelas temporais (RF-04)" tooltip="Verifica se as datas das janelas estão dentro dos limites: gestação ≤ 300 dias, puerpério = 45 dias exatos, infância ≤ 6 anos.">
+        <Card title="Consistência das janelas temporais" tooltip="Verifica se as datas das janelas estão dentro dos limites: gestação ≤ 300 dias, puerpério = 45 dias exatos, infância ≤ 6 anos.">
           {janelasReal ? (
             <div className="space-y-4">
               {[
@@ -119,7 +119,7 @@ export default async function PopulacaoPage() {
 
       {/* Entradas por semana */}
       <div className="mb-6">
-        <Card title="Entradas por semana (RF-03)" tooltip="Novos registros adicionados à população-alvo a cada semana, agrupados por segmento (gestação, puerpério, infância).">
+        <Card title="Entradas por semana" tooltip="Novos registros adicionados à população-alvo a cada semana, agrupados por segmento (gestação, puerpério, infância).">
           {entradasReal ? (
             <MultiBarChart
               data={entradasPorSemana}

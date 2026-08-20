@@ -1,7 +1,4 @@
 """
-RF-01: Atualização das bases-fonte
-RF-09: Execução dos modelos
-
 Usa __TABLES__ do BigQuery para obter row_count e last_modified_time
 sem escanear os dados (metadata-only, muito barato).
 """
@@ -114,6 +111,27 @@ def _buscar_volume_particoes(dataset: str, table_id: str, intervalo_inicio: int,
     return None
 
 
+def _buscar_volume_por_origem(dataset: str, table_id: str) -> dict[str, int] | None:
+    """
+    Para tabelas consolidadas: retorna volume por valor do campo `origem`.
+    Faz scan completo — usar cache longo.
+    """
+    sql = f"""
+        SELECT origem, COUNT(*) AS volume
+        FROM `{PROJECT}.{dataset}.{table_id}`
+        GROUP BY origem
+    """
+    try:
+        rows = executar_query(
+            sql,
+            cache_key=f"vol_origem_{dataset}_{table_id}",
+            ttl=settings.CACHE_TTL_METADATA,
+        )
+        return {r["origem"]: int(r["volume"]) for r in rows if r.get("origem")}
+    except Exception:
+        return None
+
+
 def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     """Busca metadata + histórico de uma fonte. Roda em paralelo."""
     cadencia = cfg.get("cadencia", "diaria")
@@ -126,11 +144,13 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
             "dataset": cfg["dataset"],
             "table_id": cfg["table_id"],
             "cadencia": cadencia,
+            "tipo": cfg.get("tipo", "padrao"),
             "ultima_atualizacao": None,
             "volume": None,
             "volume_atual_7d": None,
             "variacao_pct": None,
             "media_7d": None,
+            "volume_por_origem": None,
             "horas_sem_atualizacao": None,
             "severidade": "alerta",
             "erro": "Tabela não encontrada",
@@ -144,18 +164,27 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     volume = int(meta.get("row_count") or 0)
 
     sev_fresh = _severidade_freshness(horas, cadencia)
+    tipo = cfg.get("tipo", "padrao")
 
-    if cadencia == "mensal":
-        # Backup mensal com substituição: não há carga anterior disponível para comparar.
-        # Severidade determinada apenas pelo freshness.
+    if tipo == "consolidada":
+        # Tabela consolidada: severidade só pelo freshness, volume por origem via query.
         volume_atual_7d = None
         media_7d = None
         variacao_pct = None
+        volume_por_origem = _buscar_volume_por_origem(cfg["dataset"], cfg["table_id"])
+        severidade = sev_fresh
+    elif cadencia == "mensal":
+        # Backup mensal com substituição: não há carga anterior disponível para comparar.
+        volume_atual_7d = None
+        media_7d = None
+        variacao_pct = None
+        volume_por_origem = None
         severidade = sev_fresh
     else:
         volume_atual_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 7, 0)
         media_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 14, 7)
         variacao_pct = None
+        volume_por_origem = None
         volume_comparacao = volume_atual_7d if volume_atual_7d is not None else volume
         if media_7d and media_7d > 0:
             variacao_pct = round((volume_comparacao - media_7d) / media_7d * 100, 2)
@@ -168,11 +197,13 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "dataset": cfg["dataset"],
         "table_id": cfg["table_id"],
         "cadencia": cadencia,
+        "tipo": tipo,
         "ultima_atualizacao": last_mod.isoformat(),
         "volume": volume,
         "volume_atual_7d": int(volume_atual_7d) if volume_atual_7d is not None else None,
         "variacao_pct": variacao_pct,
         "media_7d": media_7d,
+        "volume_por_origem": volume_por_origem,
         "horas_sem_atualizacao": round(horas, 1),
         "severidade": severidade,
     }
@@ -207,7 +238,7 @@ def get_historico_volume(dataset: str, table_id: str, dias: int = 30):
 @router.get("/status")
 def get_status_fontes():
     """
-    Retorna freshness e volume de cada tabela-fonte monitorada (RF-01).
+    Retorna freshness e volume de cada tabela-fonte monitorada.
     Usa __TABLES__ — sem custo de escaneamento de dados.
     Todas as fontes são consultadas em paralelo.
     """
@@ -288,7 +319,7 @@ def _processar_modelo(cfg: dict) -> dict:
 @router.get("/modelos")
 def get_execucoes_modelos():
     """
-    RF-09: Acompanha a execução dos modelos de saída (publico_alvo e eventos).
+    Acompanha a execução dos modelos de saída (publico_alvo e eventos).
     Usa metadados.ultima_atualizacao embutido nos modelos dbt.
     Todos os modelos são consultados em paralelo.
     """

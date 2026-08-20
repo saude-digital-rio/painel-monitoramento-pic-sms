@@ -1,8 +1,5 @@
 """
-RF-07: Vacinação (mart_cit__vacinacao)
-RF-08: Testes rápidos
-RF-17: Sequência da pentavalente D1→D2→D3
-RF-07: Cobertura D3 entre a população-alvo infantil
+Rotas de vacinação: série D3 pentavalente, testes rápidos, sequência D1→D2→D3 e cobertura.
 """
 
 import logging
@@ -28,7 +25,7 @@ NOMES_PENTAVALENTE_ACEITOS = {
 @router.get("/serie")
 def get_serie_vacinacao(semanas: int = Query(default=12, ge=1, le=52)):
     """
-    RF-07: Série semanal de registros D3 pentavalente por fonte.
+    Série semanal de registros D3 pentavalente por fonte.
     Inclui descartados por motivo (Não aplicada, data nula, outros).
     """
     sql = f"""
@@ -96,7 +93,7 @@ def get_serie_vacinacao(semanas: int = Query(default=12, ge=1, le=52)):
 
 @router.get("/pentavalente")
 def get_sequencia_pentavalente():
-    """RF-17: Sequência D1→D2→D3 e intervalos entre doses."""
+    """Sequência D1→D2→D3 e intervalos entre doses."""
     # CPFs com cada dose (baseado em todas as doses, não apenas D3)
     sql = f"""
         WITH doses AS (
@@ -180,7 +177,7 @@ def get_sequencia_pentavalente():
 @router.get("/testes-rapidos")
 def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
     """
-    RF-08: Série semanal de testes rápidos por tipo e fonte.
+    Série semanal de testes rápidos por tipo e fonte.
     Compara procedimentos clínicos vs. resultados via API (testerapido).
     """
     # Via procedimentos_clinicos — data de referência é loaded_at do próprio registro
@@ -264,7 +261,7 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
 @router.get("/cobertura-d3")
 def get_cobertura_d3():
     """
-    RF-07: Cobertura de D3 pentavalente entre crianças da população-alvo (Infância).
+    Cobertura de D3 pentavalente entre crianças da população-alvo (Infância).
     JOIN entre publico_alvo e registro_vacinal para calcular quantas crianças da
     população-alvo têm pelo menos uma dose D3 registrada.
     """
@@ -299,7 +296,7 @@ def get_cobertura_d3():
 @router.get("/divergencia-testes")
 def get_divergencia_testes():
     """
-    RF-08: Snapshot da última semana completa comparando procedimentos clínicos
+    Snapshot da última semana completa comparando procedimentos clínicos
     vs. registros via testerapido API, por tipo de teste rápido.
     """
     sql_proc = f"""

@@ -8,14 +8,9 @@ import { FreshnessBar } from "@/components/ui/FreshnessBar";
 import { FonteDetalheModal } from "@/components/ui/FonteDetalheModal";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { api, type FonteStatusAPI, type ExecucaoModeloAPI } from "@/lib/api/client";
-import { MultiLineChart } from "@/components/charts/LineChart";
-import { BarChart2 } from "lucide-react";
 
 export default function FontesPage() {
-  const [fonteDetalhada, setFonteDetalhada] = useState<string | null>(null);
   const [fonteModal, setFonteModal] = useState<FonteStatusAPI | null>(null);
-  const [historicoData, setHistoricoData] = useState<{ data: string; volume: number }[] | null>(null);
-  const [historicoLoading, setHistoricoLoading] = useState(false);
   const [fontes, setFontes] = useState<FonteStatusAPI[] | null>(null);
   const [modelos, setModelos] = useState<ExecucaoModeloAPI[] | null>(null);
 
@@ -32,7 +27,7 @@ export default function FontesPage() {
     <div>
       <Header
         title="Fontes e Atualização"
-        subtitle="Freshness, volume e comportamento das tabelas-fonte (RF-01, RF-09)"
+        subtitle="Freshness, volume e comportamento das tabelas-fonte"
         dataRef={fontes[0]?.ultima_atualizacao ?? undefined}
       />
 
@@ -83,14 +78,14 @@ export default function FontesPage() {
       </div>
 
       {/* Tabela de fontes */}
-      <Card title="Tabelas-fonte monitoradas" subtitle="Clique em uma linha para ver o histórico de volume" padding={false} tooltip="Tabelas BigQuery usadas pelo painel com volume atual, variação em relação à média de 7 dias e tempo desde a última atualização.">
+      <Card title="Tabelas-fonte monitoradas" subtitle="Clique em uma linha para ver os detalhes" padding={false} tooltip="Tabelas BigQuery usadas pelo painel com volume atual, variação em relação à média de 7 dias e tempo desde a última atualização.">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fonte / Tabela</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Volume</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Var. 7d</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Variação semanal</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Freshness</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               </tr>
@@ -107,26 +102,21 @@ export default function FontesPage() {
                 return (
                   <tr
                     key={fonte.tabela}
-                    className={`cursor-pointer transition-colors ${
-                      fonteDetalhada === fonte.tabela ? "bg-blue-50" : "hover:bg-gray-50"
-                    }`}
-                    onClick={() => {
-                      const next = fonteDetalhada === fonte.tabela ? null : fonte.tabela;
-                      setFonteDetalhada(next);
-                      setFonteModal(fonte);
-                      if (next) {
-                        setHistoricoData(null);
-                        setHistoricoLoading(true);
-                        api.fontes.historico(fonte.dataset, fonte.table_id).then((d) => {
-                          setHistoricoData(d ?? []);
-                          setHistoricoLoading(false);
-                        });
-                      }
-                    }}
+                    className="cursor-pointer transition-colors hover:bg-gray-50"
+                    onClick={() => setFonteModal(fonte)}
                   >
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-gray-800">{fonte.nome}</p>
-                      <p className="text-xs text-gray-400 font-mono mt-0.5">{fonte.tabela}</p>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">
+                        <span className="text-gray-300 select-none">Modelo </span>{fonte.tabela}
+                      </p>
+                      {fonte.dataset && fonte.table_id && (
+                        <p className="text-[11px] font-mono mt-0.5">
+                          <span className="text-gray-300 select-none">Tabela </span>
+                          <span className="text-gray-400">{fonte.dataset}.</span>
+                          <span className="text-gray-600 font-medium">{fonte.table_id}</span>
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-right font-mono text-gray-700">
                       {volume.toLocaleString("pt-BR")}
@@ -155,45 +145,6 @@ export default function FontesPage() {
           </table>
         </div>
       </Card>
-
-      {/* Histórico de volume por partição */}
-      {fonteDetalhada && (() => {
-        let conteudo;
-        if (historicoLoading) {
-          conteudo = (
-            <div className="flex items-center justify-center h-40 gap-2 text-gray-400">
-              <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-              <span className="text-sm">Carregando...</span>
-            </div>
-          );
-        } else if (historicoData && historicoData.length > 0) {
-          conteudo = (
-            <MultiLineChart
-              data={historicoData}
-              lines={[{ key: "volume", label: "Linhas por partição", color: "#6366f1" }]}
-              xKey="data"
-              height={220}
-            />
-          );
-        } else {
-          conteudo = (
-            <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
-              <BarChart2 className="w-8 h-8 opacity-30" />
-              <p className="text-sm">Tabela não particionada ou sem dados nos últimos 30 dias</p>
-            </div>
-          );
-        }
-        return (
-          <div className="mt-6">
-            <Card
-              title={`Histórico de volume — ${fontes.find(f => f.tabela === fonteDetalhada)?.nome}`}
-              subtitle={`${fonteDetalhada} · últimos 30 dias`}
-            >
-              {conteudo}
-            </Card>
-          </div>
-        );
-      })()}
 
       {fonteModal && (
         <FonteDetalheModal fonte={fonteModal} onClose={() => setFonteModal(null)} />

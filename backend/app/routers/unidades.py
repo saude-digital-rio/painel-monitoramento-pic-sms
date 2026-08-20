@@ -1,5 +1,5 @@
 """
-RF-15: Unidades de saúde — análise por CNES.
+Unidades de saúde — análise por CNES.
 """
 
 import logging
@@ -32,7 +32,7 @@ def _severidade_unidade(variacao_pct: float, horas_sem_evento: float) -> str:
 @router.get("")
 def get_unidades():
     """
-    RF-15: Lista de unidades com volume de eventos nos últimos 7 dias
+    Lista de unidades com volume de eventos nos últimos 7 dias
     e média histórica (últimas 4 semanas).
     Fonte: raw_prontuario_vitacare__atendimento (tem o campo cnes_unidade).
     """

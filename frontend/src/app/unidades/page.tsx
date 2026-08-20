@@ -43,7 +43,7 @@ export default function UnidadesPage() {
     <div>
       <Header
         title="Unidades de Saúde"
-        subtitle="Análise por CNES — queda de eventos e ausência de registros (RF-15)"
+        subtitle="Análise por CNES — queda de eventos e ausência de registros"
       />
 
       {/* Resumo */}
@@ -191,7 +191,7 @@ export default function UnidadesPage() {
               </div>
             </Card>
           ) : (
-            <Card title="Regras de alerta (RF-15)">
+            <Card title="Regras de alerta">
               <div className="space-y-3 text-sm">
                 <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <p className="font-semibold text-yellow-800">Aviso — 24h sem eventos</p>

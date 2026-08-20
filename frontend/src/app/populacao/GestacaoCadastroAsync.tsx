@@ -11,7 +11,7 @@ export async function GestacaoCadastroAsync() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card title="Monitoramento de gestações (RF-10)" tooltip="Anomalias nos registros de gestação: datas nulas ou no futuro, e pacientes com mais de uma gestação ativa ao mesmo tempo.">
+      <Card title="Monitoramento de gestações" tooltip="Anomalias nos registros de gestação: datas nulas ou no futuro, e pacientes com mais de uma gestação ativa ao mesmo tempo.">
         {gestacaoReal ? (
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -43,7 +43,7 @@ export async function GestacaoCadastroAsync() {
         )}
       </Card>
 
-      <Card title="Qualidade do cadastro Vitacare (RF-11)" tooltip="Validade dos dados cadastrais dos pacientes: CPF com formato inválido, datas de nascimento incorretas e falta de vínculo com a população-alvo.">
+      <Card title="Qualidade do cadastro Vitacare" tooltip="Validade dos dados cadastrais dos pacientes: CPF com formato inválido, datas de nascimento incorretas e falta de vínculo com a população-alvo.">
         {cadastroReal ? (
           <div className="space-y-3">
             {[

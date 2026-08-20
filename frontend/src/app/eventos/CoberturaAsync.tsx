@@ -14,7 +14,7 @@ export async function CoberturaAsync() {
     : null;
 
   return (
-    <Card title="Cobertura de eventos por segmento (RF-05)" className="mb-6" tooltip="Percentual da população-alvo com ao menos um evento registrado (consulta, visita ou teste). Meta recomendada: ≥ 85%.">
+    <Card title="Cobertura de eventos por segmento" className="mb-6" tooltip="Percentual da população-alvo com ao menos um evento registrado (consulta, visita ou teste). Meta recomendada: ≥ 85%.">
       {cobertura && cobertura.gestacao && cobertura.puerperio && cobertura.infancia ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[

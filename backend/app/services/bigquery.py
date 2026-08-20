@@ -111,6 +111,7 @@ FONTE_CONFIGS = [
         "dataset": "brutos_prontuario_vitacare",
         "table_id": "atendimento",
         "cadencia": "diaria",
+        "tipo": "consolidada",
     },
     {
         "nome": "Vitacare - Procedimentos",

@@ -1,8 +1,5 @@
 """
-RF-05: Volume e cobertura de eventos
-RF-06: Consistência das datas
-RF-16: Evento × segmento
-RF-18: Completude da saída
+Rotas de eventos: volume, cobertura, consistência de datas, compatibilidade e completude.
 """
 
 import logging
@@ -19,7 +16,7 @@ logger = logging.getLogger(__name__)
 @router.get("/serie")
 def get_serie_eventos(dias: int = Query(default=30, ge=7, le=365)):
     """
-    RF-05: Série histórica de eventos por tipo.
+    Série histórica de eventos por tipo.
     Query na tabela mart_iplanrio_pic__eventos filtrada por data_evento.
     """
     sql = f"""
@@ -61,7 +58,7 @@ def get_serie_eventos(dias: int = Query(default=30, ge=7, le=365)):
 
 @router.get("/cobertura")
 def get_cobertura():
-    """RF-05: Cobertura — população com pelo menos um evento."""
+    """Cobertura — população com pelo menos um evento."""
     sql = f"""
         WITH publico AS (
             SELECT tipo_publico, cpf
@@ -122,7 +119,7 @@ def _get_eventos_counters() -> dict:
 
 @router.get("/consistencia-datas")
 def get_consistencia_datas():
-    """RF-06: Consistência das datas dos eventos."""
+    """Consistência das datas dos eventos."""
     r = _get_eventos_counters()
     return {
         "eventos_futuro": int(r.get("eventos_futuro", 0)),
@@ -136,7 +133,7 @@ def get_consistencia_datas():
 
 @router.get("/evento-segmento")
 def get_evento_segmento():
-    """RF-16: Cruzamento tipo_evento × tipo_publico com flag de incompatibilidade."""
+    """Cruzamento tipo_evento × tipo_publico com flag de incompatibilidade."""
     # Combinações incompatíveis conhecidas
     INCOMPATIVEIS = {
         ("Teste rápido - HIV", "Infancia"),
@@ -169,7 +166,7 @@ def get_evento_segmento():
 
 @router.get("/completude")
 def get_completude():
-    """RF-18: Completude dos campos transmitidos."""
+    """Completude dos campos transmitidos."""
     r = _get_eventos_counters()
     return {
         "tipo_publico_nulo": int(r.get("tipo_publico_nulo", 0)),

@@ -16,7 +16,7 @@ export default async function ConsistenciaPage() {
     <div>
       <Header
         title="Consistência entre Fontes"
-        subtitle="Vacinação Vitacare × SIPNI e testes rápidos pelas diferentes rotas (RF-07, RF-08, RF-17)"
+        subtitle="Vacinação Vitacare × SIPNI e testes rápidos pelas diferentes rotas"
       />
 
       {/* Vacinação KPIs */}
@@ -47,7 +47,7 @@ export default async function ConsistenciaPage() {
         </Card>
 
         {/* Taxa de descarte */}
-        <Card title="Série de descarte semanal (RF-07)" subtitle="Registros excluídos por motivo" tooltip="Registros de vacinação removidos a cada semana, classificados pelo motivo: vacina não aplicada, data nula ou outros.">
+        <Card title="Série de descarte semanal" subtitle="Registros excluídos por motivo" tooltip="Registros de vacinação removidos a cada semana, classificados pelo motivo: vacina não aplicada, data nula ou outros.">
           {serieReal ? (
             <MultiBarChart
               data={serieReal}

@@ -15,7 +15,7 @@ export async function TestesAsync() {
   const divergencia = divergenciaReal;
 
   return (
-    <Card title="Testes rápidos — divergência entre fontes (RF-08)" tooltip="Compara a contagem de testes rápidos entre a tabela de procedimentos e a API de testes, por tipo. Divergências acima de 10% são sinalizadas.">
+    <Card title="Testes rápidos — divergência entre fontes" tooltip="Compara a contagem de testes rápidos entre a tabela de procedimentos e a API de testes, por tipo. Divergências acima de 10% são sinalizadas.">
       {divergencia ? (
         <div className="space-y-3 mb-4">
           {Object.entries(divergencia).map(([tipo, d]) => {

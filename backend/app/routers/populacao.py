@@ -1,9 +1,5 @@
 """
-RF-02: Volume da população-alvo
-RF-03: Entradas e saídas
-RF-04: Janelas temporais
-RF-10: Fases de gestação
-RF-11: Cobertura do cadastro Vitacare
+Rotas de população-alvo: volume por segmento, janelas temporais, gestações e qualidade cadastral.
 """
 
 import logging
@@ -84,7 +80,7 @@ def get_sobreposicao():
 @router.get("/serie")
 def get_serie_populacao(dias: int = Query(default=30, ge=7, le=365)):
     """
-    RF-02: Série histórica usando as datas de início das janelas ativas.
+    Série histórica usando as datas de início das janelas ativas.
 
     Nota: mart_iplanrio_pic__publico_alvo é uma tabela snapshot (substituída a cada run).
     Esta query usa a data de início (campo `inicio`) como proxy temporal —
@@ -127,7 +123,7 @@ def get_serie_populacao(dias: int = Query(default=30, ge=7, le=365)):
 
 @router.get("/janelas")
 def get_janelas_temporais():
-    """RF-04: Consistência das janelas temporais."""
+    """Consistência das janelas temporais."""
     sql = f"""
         SELECT
             tipo_publico,
@@ -176,7 +172,7 @@ def get_janelas_temporais():
 @router.get("/entradas-saidas")
 def get_entradas_saidas(semanas: int = Query(default=12, ge=1, le=52)):
     """
-    RF-03: Entradas por segmento agrupadas por semana.
+    Entradas por segmento agrupadas por semana.
 
     Entradas: registros cujo campo `inicio` cai na semana.
     Saídas: não disponíveis — publico_alvo é tabela snapshot sem histórico de remoções.
@@ -208,7 +204,7 @@ def get_entradas_saidas(semanas: int = Query(default=12, ge=1, le=52)):
 
 @router.get("/gestacoes")
 def get_gestacoes():
-    """RF-10: Monitoramento de gestações e puerpério."""
+    """Monitoramento de gestações e puerpério."""
     sql = f"""
         SELECT
             fase_atual,
@@ -260,7 +256,7 @@ def get_gestacoes():
 
 @router.get("/cadastro")
 def get_cadastro():
-    """RF-11: Qualidade do cadastro Vitacare."""
+    """Qualidade do cadastro Vitacare."""
     sql = f"""
         SELECT
             COUNT(*) AS total_pacientes,

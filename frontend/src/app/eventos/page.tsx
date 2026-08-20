@@ -39,7 +39,7 @@ export default async function EventosPage() {
     <div>
       <Header
         title="Eventos"
-        subtitle="Cobertura, volume, consistência temporal e tipos de evento por segmento (RF-05, RF-06, RF-16, RF-18)"
+        subtitle="Cobertura, volume, consistência temporal e tipos de evento por segmento"
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">

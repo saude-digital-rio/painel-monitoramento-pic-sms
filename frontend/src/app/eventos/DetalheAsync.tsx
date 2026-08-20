@@ -16,7 +16,7 @@ export async function DetalheAsync() {
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card title="Consistência das datas (RF-06)" tooltip="Eventos com datas inválidas: no futuro, anteriores ao nascimento da paciente ou fora da janela de monitoramento esperada.">
+        <Card title="Consistência das datas" tooltip="Eventos com datas inválidas: no futuro, anteriores ao nascimento da paciente ou fora da janela de monitoramento esperada.">
           {consistenciaReal ? (
             <div className="space-y-3">
               {[
@@ -44,7 +44,7 @@ export async function DetalheAsync() {
           )}
         </Card>
 
-        <Card title="Completude dos campos de saída (RF-18)" tooltip="Campos obrigatórios nos registros de eventos exportados que estão nulos ou inválidos. Qualquer valor acima de 0 indica problema na saída.">
+        <Card title="Completude dos campos de saída" tooltip="Campos obrigatórios nos registros de eventos exportados que estão nulos ou inválidos. Qualquer valor acima de 0 indica problema na saída.">
           {completudeReal ? (
             <div className="space-y-3">
               {[
@@ -73,7 +73,7 @@ export async function DetalheAsync() {
         </Card>
       </div>
 
-      <Card title="Compatibilidade de eventos por segmento (RF-16)" subtitle="Detecta eventos registrados para o segmento errado" tooltip="Sinaliza quando um tipo de evento não deveria ser aplicado àquele segmento. Ex: vacina pentavalente D3 (exclusiva de crianças) registrada para gestante ou puerpério. Qualquer linha 'Improvável' indica possível erro de cadastro.">
+      <Card title="Compatibilidade de eventos por segmento" subtitle="Detecta eventos registrados para o segmento errado" tooltip="Sinaliza quando um tipo de evento não deveria ser aplicado àquele segmento. Ex: vacina pentavalente D3 (exclusiva de crianças) registrada para gestante ou puerpério. Qualquer linha 'Improvável' indica possível erro de cadastro.">
         {eventoSegReal ? (
           <>
             <div className="flex gap-3 mb-4">

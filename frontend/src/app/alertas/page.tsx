@@ -42,7 +42,7 @@ export default function AlertasPage() {
     <div>
       <Header
         title="Alertas"
-        subtitle="Lista consolidada por severidade, histórico e situação da investigação (RF-12)"
+        subtitle="Lista consolidada por severidade, histórico e situação da investigação"
         dataRef={alertas[0]?.data}
       />
 

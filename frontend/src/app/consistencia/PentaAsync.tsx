@@ -10,7 +10,7 @@ export async function PentaAsync() {
   ]);
 
   return (
-    <Card title="Sequência da pentavalente D1→D2→D3 (RF-17)" tooltip="Verifica se crianças com D3 registrada também possuem D1 e D2, e se o intervalo entre doses está dentro do esperado (28–90 dias).">
+    <Card title="Sequência da pentavalente D1→D2→D3" tooltip="Verifica se crianças com D3 registrada também possuem D1 e D2, e se o intervalo entre doses está dentro do esperado (28–90 dias).">
       {pentaReal ? (
         <div className="space-y-3">
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
