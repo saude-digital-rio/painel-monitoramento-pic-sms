@@ -164,7 +164,7 @@ FONTE_CONFIGS = [
     },
     {
         "nome": "Gestações",
-        "tabela": "gestacoes",
+        "tabela": "mart_bi_gestacoes__gestacoes",
         "dataset": "projeto_gestacoes",
         "table_id": "gestacoes",
         "cadencia": "diaria",
