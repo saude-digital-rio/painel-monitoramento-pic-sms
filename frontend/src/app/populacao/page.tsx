@@ -37,15 +37,6 @@ export default async function PopulacaoPage() {
       };
     });
 
-  const saidasPorSemana = entradaSaida
-    .filter((e) => e.segmento === "Gestacao")
-    .map((e) => ({
-      data: e.data,
-      encerramento: e.saidas_encerramento,
-      expiracao: e.saidas_expiracao,
-      desaparecimento: e.saidas_desaparecimento,
-    }));
-
   return (
     <div>
       <Header
@@ -126,8 +117,8 @@ export default async function PopulacaoPage() {
         </Card>
       </div>
 
-      {/* Entradas e saídas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* Entradas por semana */}
+      <div className="mb-6">
         <Card title="Entradas por semana (RF-03)" tooltip="Novos registros adicionados à população-alvo a cada semana, agrupados por segmento (gestação, puerpério, infância).">
           {entradasReal ? (
             <MultiBarChart
@@ -139,25 +130,6 @@ export default async function PopulacaoPage() {
               ]}
               height={220}
             />
-          ) : (
-            <ApiErrorCard />
-          )}
-        </Card>
-        <Card title="Saídas por semana com motivo (RF-03)" tooltip="Registros que saíram da população-alvo por semana. Motivos: encerramento da gestação, expiração da janela de monitoramento ou desaparecimento do paciente.">
-          {entradasReal ? (
-            <>
-              <MultiBarChart
-                data={saidasPorSemana}
-                bars={[
-                  { key: "encerramento", label: "Encerramento gestação", color: "#6366f1" },
-                  { key: "expiracao", label: "Expiração de janela", color: "#f59e0b" },
-                  { key: "desaparecimento", label: "Desaparecimento", color: "#ef4444" },
-                ]}
-                stacked
-                height={220}
-              />
-              <p className="text-xs text-gray-400 mt-2">Exibindo segmento Gestação.</p>
-            </>
           ) : (
             <ApiErrorCard />
           )}

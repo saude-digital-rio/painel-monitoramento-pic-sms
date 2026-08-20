@@ -2,13 +2,13 @@ import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, StatCard } from "@/components/ui/Card";
 import { SeveridadeBadge } from "@/components/ui/Badge";
-import { FreshnessBar } from "@/components/ui/FreshnessBar";
 import { ApiErrorCard } from "@/components/ui/ApiErrorCard";
 import { api } from "@/lib/api/client";
 import { Users, Bell, Database, Zap } from "lucide-react";
 import { SobreposicaoModal } from "@/components/ui/SobreposicaoModal";
 import { SerieChartAsync } from "./SerieChartAsync";
 import { AlertasAsync } from "./AlertasAsync";
+import { FontesStatusCard } from "./FontesStatusCard";
 
 export default async function VisaoGeralPage() {
   const [fontesReal, modelosReal, popReal] = await Promise.all([
@@ -26,7 +26,7 @@ export default async function VisaoGeralPage() {
     <div>
       <Header
         title="Visão Geral"
-        subtitle="Saúde do pipeline — O que a SMS está enviando para o PIC está correto?"
+        subtitle="Saúde do pipeline"
         dataRef={dataRef}
       />
 
@@ -110,49 +110,9 @@ export default async function VisaoGeralPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status das fontes */}
-        <Card title="Status das fontes" subtitle="Freshness e alertas de volume" padding={false} tooltip="Tempo desde a última atualização das tabelas de dados (Vitacare, SIPNI). Alertas indicam dados potencialmente desatualizados.">
+        <Card title="Status das fontes" subtitle="Freshness e alertas de volume — clique para detalhes" padding={false} tooltip="Tempo desde a última atualização das tabelas de dados (Vitacare, SIPNI). Alertas indicam dados potencialmente desatualizados.">
           {fontesReal ? (
-            <div className="divide-y divide-gray-50">
-              {fontesReal.map((fonte) => (
-                <div key={fonte.tabela} className="px-5 py-3.5">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{fonte.nome}</p>
-                      {fonte.cadencia === "mensal" && (
-                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 font-medium">mensal</span>
-                      )}
-                    </div>
-                    <SeveridadeBadge severidade={fonte.severidade} />
-                  </div>
-                  <div className="flex flex-col gap-y-0.5 mb-1.5">
-                    <span className="text-[11px] text-gray-400 font-mono truncate">
-                      <span className="text-gray-300 select-none">Modelo </span>{fonte.tabela}
-                    </span>
-                    {fonte.dataset && fonte.table_id && (
-                      <span className="text-[11px] font-mono truncate">
-                        <span className="text-gray-300 select-none">Tabela </span>
-                        <span className="text-gray-400">{fonte.dataset}.</span>
-                        <span className="text-gray-600 font-medium">{fonte.table_id}</span>
-                      </span>
-                    )}
-                  </div>
-                  {fonte.ultima_atualizacao && fonte.horas_sem_atualizacao !== null ? (
-                    <FreshnessBar
-                      horas={fonte.horas_sem_atualizacao}
-                      severidade={fonte.severidade}
-                      ultimaAtualizacao={fonte.ultima_atualizacao}
-                    />
-                  ) : (
-                    <p className="text-xs text-gray-400">{fonte.erro ?? "Sem dados"}</p>
-                  )}
-                  {fonte.variacao_pct !== null && Math.abs(fonte.variacao_pct) > 10 && (
-                    <p className={`text-xs mt-0.5 ${fonte.variacao_pct < 0 ? "text-red-600" : "text-green-600"}`}>
-                      Variação: {fonte.variacao_pct > 0 ? "+" : ""}{fonte.variacao_pct.toFixed(1)}% vs média 7d
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+            <FontesStatusCard fontes={fontesReal} />
           ) : (
             <div className="p-4"><ApiErrorCard /></div>
           )}

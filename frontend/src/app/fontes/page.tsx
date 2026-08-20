@@ -5,12 +5,17 @@ import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { SeveridadeBadge } from "@/components/ui/Badge";
 import { FreshnessBar } from "@/components/ui/FreshnessBar";
+import { FonteDetalheModal } from "@/components/ui/FonteDetalheModal";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { api, type FonteStatusAPI, type ExecucaoModeloAPI } from "@/lib/api/client";
+import { MultiLineChart } from "@/components/charts/LineChart";
 import { BarChart2 } from "lucide-react";
 
 export default function FontesPage() {
   const [fonteDetalhada, setFonteDetalhada] = useState<string | null>(null);
+  const [fonteModal, setFonteModal] = useState<FonteStatusAPI | null>(null);
+  const [historicoData, setHistoricoData] = useState<{ data: string; volume: number }[] | null>(null);
+  const [historicoLoading, setHistoricoLoading] = useState(false);
   const [fontes, setFontes] = useState<FonteStatusAPI[] | null>(null);
   const [modelos, setModelos] = useState<ExecucaoModeloAPI[] | null>(null);
 
@@ -65,9 +70,9 @@ export default function FontesPage() {
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500">Variação vs. anterior</p>
-                    <p className={`font-semibold mt-0.5 ${Math.abs(variacaoPct) > 5 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={`font-semibold mt-0.5 ${variacaoPct < -5 ? "text-red-600" : "text-green-600"}`}>
                       {variacaoPct > 0 ? "+" : ""}{variacaoPct.toFixed(2)}%
-                      {Math.abs(variacaoPct) > 5 && " ⚠"}
+                      {variacaoPct < -5 && " ⚠"}
                     </p>
                   </div>
                 </div>
@@ -95,17 +100,29 @@ export default function FontesPage() {
                 const volume = fonte.volume ?? 0;
                 const variacaoPct = fonte.variacao_pct ?? 0;
                 const horas = fonte.horas_sem_atualizacao ?? 0;
-                const absVar = Math.abs(variacaoPct);
                 let varColor = "text-green-600";
-                if (absVar > 10) varColor = "text-red-600";
-                else if (absVar > 5) varColor = "text-orange-600";
+                if (variacaoPct < -10) varColor = "text-red-600";
+                else if (variacaoPct < -5) varColor = "text-orange-600";
+                else if (variacaoPct > 50) varColor = "text-yellow-600";
                 return (
                   <tr
                     key={fonte.tabela}
                     className={`cursor-pointer transition-colors ${
                       fonteDetalhada === fonte.tabela ? "bg-blue-50" : "hover:bg-gray-50"
                     }`}
-                    onClick={() => setFonteDetalhada(fonteDetalhada === fonte.tabela ? null : fonte.tabela)}
+                    onClick={() => {
+                      const next = fonteDetalhada === fonte.tabela ? null : fonte.tabela;
+                      setFonteDetalhada(next);
+                      setFonteModal(fonte);
+                      if (next) {
+                        setHistoricoData(null);
+                        setHistoricoLoading(true);
+                        api.fontes.historico(fonte.dataset, fonte.table_id).then((d) => {
+                          setHistoricoData(d ?? []);
+                          setHistoricoLoading(false);
+                        });
+                      }
+                    }}
                   >
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-gray-800">{fonte.nome}</p>
@@ -139,20 +156,47 @@ export default function FontesPage() {
         </div>
       </Card>
 
-      {/* Histórico de volume — placeholder até endpoint disponível */}
-      {fonteDetalhada && (
-        <div className="mt-6">
-          <Card
-            title={`Histórico de volume — ${fontes.find(f => f.tabela === fonteDetalhada)?.nome}`}
-            subtitle={fonteDetalhada}
-          >
+      {/* Histórico de volume por partição */}
+      {fonteDetalhada && (() => {
+        let conteudo;
+        if (historicoLoading) {
+          conteudo = (
+            <div className="flex items-center justify-center h-40 gap-2 text-gray-400">
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+              <span className="text-sm">Carregando...</span>
+            </div>
+          );
+        } else if (historicoData && historicoData.length > 0) {
+          conteudo = (
+            <MultiLineChart
+              data={historicoData}
+              lines={[{ key: "volume", label: "Linhas por partição", color: "#6366f1" }]}
+              xKey="data"
+              height={220}
+            />
+          );
+        } else {
+          conteudo = (
             <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
               <BarChart2 className="w-8 h-8 opacity-30" />
-              <p className="text-sm">Histórico de volume em desenvolvimento</p>
-              <p className="text-xs text-gray-300">Requer endpoint de série histórica por tabela</p>
+              <p className="text-sm">Tabela não particionada ou sem dados nos últimos 30 dias</p>
             </div>
-          </Card>
-        </div>
+          );
+        }
+        return (
+          <div className="mt-6">
+            <Card
+              title={`Histórico de volume — ${fontes.find(f => f.tabela === fonteDetalhada)?.nome}`}
+              subtitle={`${fonteDetalhada} · últimos 30 dias`}
+            >
+              {conteudo}
+            </Card>
+          </div>
+        );
+      })()}
+
+      {fonteModal && (
+        <FonteDetalheModal fonte={fonteModal} onClose={() => setFonteModal(null)} />
       )}
 
       {/* Legenda de severidade */}

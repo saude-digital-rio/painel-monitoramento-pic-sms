@@ -8,13 +8,16 @@ services:
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
     volumes:
-      # Monta as credenciais ADC locais — NÃO commitar arquivos de chave
+      - ./backend/app:/app/app
       - ${HOME}/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - app
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     ports:
       - "3001:3000"
     env_file:
@@ -22,8 +25,14 @@ services:
     environment:
       - HOSTNAME=0.0.0.0
       - PORT=3000
+      - INTERNAL_API_URL=http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
+    command: sh -c "npm install && npm run dev"
     networks:
       - app
 

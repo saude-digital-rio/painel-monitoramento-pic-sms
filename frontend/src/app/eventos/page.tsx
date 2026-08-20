@@ -50,6 +50,48 @@ export default async function EventosPage() {
         <StatCard label="Diagnósticos de IST (30d)" value={totais?.diagnostico ?? "—"} icon={<Activity className="w-5 h-5" />} color="red" />
       </div>
 
+      <details className="group mb-6">
+        <summary className="cursor-pointer list-none flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors select-none w-fit">
+          <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+          Ver critérios de classificação dos eventos
+        </summary>
+        <div className="mt-3 rounded-2xl border border-gray-100 bg-white overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Tipo de evento</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Fonte</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Critério</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 text-xs">
+              {([
+                ["Consulta", "Vitacare · atendimento", "Realizado por médico ou enfermeiro (CBO), excluindo visitas domiciliares"],
+                ["Visita Domiciliar", "Vitacare · atendimento", "tipo_consulta contém 'visita'; profissional ACS ou Técnico de ACS (CBO 515105 / 322255)"],
+                ["Teste rápido — HIV", "Vitacare · histórico (procedimentos / testerapido) e API testerapido", "Código SIGTAP 0214010058 / 0214010040 ou campo resultado_teste_hiv preenchido"],
+                ["Teste rápido — Sífilis", "Vitacare · histórico (procedimentos / testerapido) e API testerapido", "Código SIGTAP 0214010074 / 0214010082 ou campo resultado_teste_sifilis preenchido"],
+                ["Teste rápido — Hepatite B", "Vitacare · histórico (procedimentos / testerapido) e API testerapido", "Código SIGTAP 0214010104 ou campo resultado_teste_hepatite_b preenchido"],
+                ["Teste rápido — Hepatite C", "Vitacare · histórico (procedimentos / testerapido) e API testerapido", "Código SIGTAP 0214010090 ou campo resultado_teste_hepatite_c preenchido"],
+                ["Vacina — Pentavalente D3", "CIT / SIPNI · vacinação", "3ª dose de vacina penta ou hexavalente; exclui registros 'Não aplicada'"],
+                ["Diagnóstico — HIV", "Histórico clínico · episódio", "CID: B20–B24, Z21, O987"],
+                ["Diagnóstico — Sífilis", "Histórico clínico · episódio", "CID: A50–A53, O981"],
+                ["Diagnóstico — Hepatite B", "Histórico clínico · episódio", "CID: B16, B180, B181"],
+                ["Diagnóstico — Hepatite C", "Histórico clínico · episódio", "CID: B171, B182"],
+              ] as [string, string, string][]).map(([tipo, fonte, criterio]) => (
+                <tr key={tipo} className="hover:bg-gray-50">
+                  <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{tipo}</td>
+                  <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fonte}</td>
+                  <td className="px-4 py-2.5 text-gray-600">{criterio}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-400 px-4 py-2 border-t border-gray-100">
+            Modelo dbt: <span className="font-mono">mart_iplanrio_pic__eventos</span>
+          </p>
+        </div>
+      </details>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Volume de consultas e visitas domiciliares (últimos 30 dias)" tooltip="Quantidade diária de consultas e visitas domiciliares registradas nos últimos 30 dias.">
           {serieReal ? (
@@ -114,81 +156,6 @@ export default async function EventosPage() {
       }>
         <DetalheAsync />
       </Suspense>
-
-      {/* Regras de compatibilidade */}
-      <Card title="Regras de compatibilidade evento × segmento" className="mt-6" tooltip="Matriz estática definida no backend (RF-16). Combinações marcadas com ✗ são sinalizadas como 'Improvável' na tabela acima.">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Tipo de evento</th>
-                <th className="text-center px-4 py-2.5 text-xs font-semibold text-purple-500 uppercase">Gestação</th>
-                <th className="text-center px-4 py-2.5 text-xs font-semibold text-pink-500 uppercase">Puerpério</th>
-                <th className="text-center px-4 py-2.5 text-xs font-semibold text-blue-500 uppercase">Infância</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Motivo da restrição</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {[
-                {
-                  evento: "Consulta",
-                  gestacao: true, puerperio: true, infancia: true,
-                  motivo: null,
-                },
-                {
-                  evento: "Visita Domiciliar",
-                  gestacao: true, puerperio: true, infancia: true,
-                  motivo: null,
-                },
-                {
-                  evento: "Teste rápido - HIV",
-                  gestacao: true, puerperio: true, infancia: false,
-                  motivo: "Crianças < 6 anos não são público-alvo de testes de HIV",
-                },
-                {
-                  evento: "Teste rápido - Sífilis",
-                  gestacao: true, puerperio: true, infancia: false,
-                  motivo: "Crianças < 6 anos não são público-alvo de testes de sífilis",
-                },
-                {
-                  evento: "Teste rápido - Hepatite B",
-                  gestacao: true, puerperio: true, infancia: false,
-                  motivo: "Crianças < 6 anos não são público-alvo de testes de hepatite B",
-                },
-                {
-                  evento: "Teste rápido - Hepatite C",
-                  gestacao: true, puerperio: true, infancia: false,
-                  motivo: "Crianças < 6 anos não são público-alvo de testes de hepatite C",
-                },
-                {
-                  evento: "Vacina - Pentavalente - D3",
-                  gestacao: false, puerperio: false, infancia: true,
-                  motivo: "Vacina infantil — não aplicável a gestantes ou puérperas",
-                },
-                {
-                  evento: "Diagnóstico",
-                  gestacao: true, puerperio: true, infancia: true,
-                  motivo: null,
-                },
-              ].map((row) => (
-                <tr key={row.evento} className={(!row.gestacao || !row.puerperio || !row.infancia) ? "bg-red-50/40" : undefined}>
-                  <td className="px-4 py-2.5 font-medium text-gray-800">{row.evento}</td>
-                  {[row.gestacao, row.puerperio, row.infancia].map((ok, i) => (
-                    <td key={i} className="px-4 py-2.5 text-center">
-                      {ok
-                        ? <span className="text-green-600 font-bold text-base">✓</span>
-                        : <span className="text-red-500 font-bold text-base">✗</span>
-                      }
-                    </td>
-                  ))}
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{row.motivo ?? <span className="text-gray-300">—</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-gray-400 mt-3">Regras definidas em <span className="font-mono">backend/app/routers/eventos.py</span> · constante <span className="font-mono">INCOMPATIVEIS</span></p>
-      </Card>
     </div>
   );
 }

@@ -21,3 +21,10 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 EXPOSE 3000
 CMD ["node", "server.js"]
+
+FROM node:20-slim AS dev
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+EXPOSE 3000
+CMD ["npm", "run", "dev"]

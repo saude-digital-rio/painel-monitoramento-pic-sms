@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
+const MOTIVOS: Record<string, string> = {
+  "Teste rápido - HIV|Infancia": "Crianças < 6 anos não são público-alvo de testes de HIV",
+  "Teste rápido - Sífilis|Infancia": "Crianças < 6 anos não são público-alvo de testes de sífilis",
+  "Teste rápido - Hepatite B|Infancia": "Crianças < 6 anos não são público-alvo de testes de hepatite B",
+  "Teste rápido - Hepatite C|Infancia": "Crianças < 6 anos não são público-alvo de testes de hepatite C",
+  "Vacina - Pentavalente - D3|Gestacao": "Vacina infantil — não aplicável a gestantes ou puérperas",
+  "Vacina - Pentavalente - D3|Puerperio": "Vacina infantil — não aplicável a gestantes ou puérperas",
+};
+
 interface Row {
   tipo_evento: string;
   tipo_publico: string;
@@ -86,7 +95,10 @@ export function EventoSegmentoTable({ rows }: { rows: Row[] }) {
                 {row.compativel ? (
                   <span className="text-green-600 text-xs font-medium">✓ Compatível</span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 rounded-full text-red-700 text-xs font-medium">
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 rounded-full text-red-700 text-xs font-medium cursor-default"
+                    title={MOTIVOS[`${row.tipo_evento}|${row.tipo_publico}`]}
+                  >
                     <AlertTriangle className="w-3 h-3" /> Improvável
                   </span>
                 )}

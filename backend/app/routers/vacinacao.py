@@ -183,10 +183,10 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
     RF-08: Série semanal de testes rápidos por tipo e fonte.
     Compara procedimentos clínicos vs. resultados via API (testerapido).
     """
-    # Via procedimentos_clinicos
+    # Via procedimentos_clinicos — data de referência é loaded_at do próprio registro
     sql_proc = f"""
         SELECT
-            DATE_TRUNC(DATE(a.datahora_inicio), WEEK) AS semana,
+            DATE_TRUNC(DATE(p.loaded_at), WEEK) AS semana,
             CASE p.co_procedimento
                 WHEN '0214010058' THEN 'hiv'
                 WHEN '0214010040' THEN 'hiv'
@@ -203,15 +203,14 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
         WHERE
             p.co_procedimento IN ('0214010058','0214010040','0214010074','0214010082','0214010090','0214010104')
             AND p.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
-            AND a.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
-            AND DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
+            AND DATE(p.loaded_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
         GROUP BY semana, tipo
     """
 
-    # Via testerapido API
+    # Via testerapido — data de referência é loaded_at do próprio registro
     sql_tr = f"""
         SELECT
-            DATE_TRUNC(DATE(a.datahora_inicio), WEEK) AS semana,
+            DATE_TRUNC(DATE(t.loaded_at), WEEK) AS semana,
             COUNTIF(t.resultado_teste_hiv1 IS NOT NULL OR t.resultado_teste_hiv2 IS NOT NULL) AS hiv,
             COUNTIF(t.resultado_teste_sifilis IS NOT NULL) AS sifilis,
             COUNTIF(t.resultado_teste_hepatite_b IS NOT NULL) AS hepb,
@@ -221,8 +220,7 @@ def get_testes_rapidos(semanas: int = Query(default=12, ge=1, le=52)):
             ON t.id_prontuario_global = a.id_prontuario_global
         WHERE
             t.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
-            AND a.data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7 + 30} DAY)
-            AND DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
+            AND DATE(t.loaded_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL {semanas * 7} DAY)
         GROUP BY semana
         ORDER BY semana
     """
@@ -321,8 +319,7 @@ def get_divergencia_testes():
         WHERE
             p.co_procedimento IN ('0214010058','0214010040','0214010074','0214010082','0214010090','0214010104')
             AND p.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
-            AND a.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
-            AND DATE(a.datahora_inicio) BETWEEN
+            AND DATE(p.loaded_at) BETWEEN
                 DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK), WEEK)
                 AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK), INTERVAL 1 DAY)
         GROUP BY tipo
@@ -338,8 +335,7 @@ def get_divergencia_testes():
             ON t.id_prontuario_global = a.id_prontuario_global
         WHERE
             t.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
-            AND a.data_particao >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH), MONTH)
-            AND DATE(a.datahora_inicio) BETWEEN
+            AND DATE(t.loaded_at) BETWEEN
                 DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK), WEEK)
                 AND DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK), INTERVAL 1 DAY)
     """

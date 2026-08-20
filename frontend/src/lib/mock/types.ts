@@ -18,6 +18,7 @@ export interface FonteStatus {
   tabela: string;
   ultima_atualizacao: string;
   volume: number;
+  volume_atual_7d?: number | null;
   variacao_pct: number;
   media_7d: number;
   severidade: Severidade;
@@ -75,7 +76,6 @@ export interface Unidade {
   ultima_atividade: string;
   horas_sem_evento: number;
   severidade: Severidade;
-  populacao: number;
 }
 
 export interface SerieEvento {

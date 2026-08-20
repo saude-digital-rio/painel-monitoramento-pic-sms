@@ -200,9 +200,6 @@ def get_entradas_saidas(semanas: int = Query(default=12, ge=1, le=52)):
             "data": str(r["semana"]),
             "segmento": r["segmento"],
             "entradas": int(r["entradas"]),
-            "saidas_encerramento": 0,
-            "saidas_expiracao": 0,
-            "saidas_desaparecimento": 0,
         }
         for r in rows
     ]

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { SeveridadeBadge } from "@/components/ui/Badge";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { api, type AlertaAPI } from "@/lib/api/client";
-import { Filter, CheckCircle, AlertOctagon, BarChart2 } from "lucide-react";
+import { Filter, CheckCircle, AlertOctagon } from "lucide-react";
 
 export default function AlertasPage() {
   const [filtroSeveridade, setFiltroSeveridade] = useState<string>("todas");
@@ -61,15 +61,6 @@ export default function AlertasPage() {
           </div>
         ))}
       </div>
-
-      {/* Histórico — placeholder até endpoint disponível */}
-      <Card title="Histórico semanal de alertas" className="mb-6" tooltip="Evolução do número de alertas ativos por semana. Funcionalidade em desenvolvimento — requer endpoint de série histórica.">
-        <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
-          <BarChart2 className="w-8 h-8 opacity-30" />
-          <p className="text-sm">Histórico semanal em desenvolvimento</p>
-          <p className="text-xs text-gray-300">Requer endpoint de série histórica de alertas</p>
-        </div>
-      </Card>
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">

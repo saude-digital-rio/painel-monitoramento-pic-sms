@@ -127,11 +127,25 @@ FONTE_CONFIGS = [
         "cadencia": "mensal",
     },
     {
-        "nome": "Vitacare - Testes Rápidos",
+        "nome": "Vitacare - Testes Rápidos (histórico)",
         "tabela": "raw_prontuario_vitacare_historico__testerapido",
         "dataset": "brutos_prontuario_vitacare_historico",
         "table_id": "teste_rapido",
         "cadencia": "mensal",
+    },
+    {
+        "nome": "Vitacare API - Testes Rápidos",
+        "tabela": "raw_prontuario_vitacare_api__testerapido",
+        "dataset": "brutos_prontuario_vitacare_api",
+        "table_id": "teste_rapido",
+        "cadencia": "diaria",
+    },
+    {
+        "nome": "Vitacare API - Acto (ponte)",
+        "tabela": "raw_prontuario_vitacare_api__acto",
+        "dataset": "brutos_prontuario_vitacare_api",
+        "table_id": "acto",
+        "cadencia": "diaria",
     },
     {
         "nome": "Vitacare - Pacientes",
@@ -141,7 +155,7 @@ FONTE_CONFIGS = [
         "cadencia": "diaria",
     },
     {
-        "nome": "Vacinação (CIT/SIPNI)",
+        "nome": "Vacinação",
         "tabela": "mart_cit__vacinacao",
         "dataset": "registro_vacinal",
         "table_id": "vacinacao",

@@ -30,6 +30,7 @@ LIMITE_ALERTA_HORAS = 48
 LIMITE_CRITICO_HORAS = 72
 LIMITE_MENSAL_HORAS = 31 * 24  # 744h — backup mensal esperado
 VARIACAO_CRITICO_PCT = 10.0
+VARIACAO_ALTA_AVISO_PCT = 50.0
 
 
 def _severidade_freshness(horas: float, cadencia: str = "diaria") -> str:
@@ -45,10 +46,12 @@ def _severidade_freshness(horas: float, cadencia: str = "diaria") -> str:
 
 
 def _severidade_volume(variacao_pct: float) -> str:
-    if abs(variacao_pct) > VARIACAO_CRITICO_PCT:
+    if variacao_pct < -VARIACAO_CRITICO_PCT:
         return "critico"
-    if abs(variacao_pct) > 5:
+    if variacao_pct < -5:
         return "alerta"
+    if variacao_pct > VARIACAO_ALTA_AVISO_PCT:
+        return "aviso"
     return "ok"
 
 
@@ -76,11 +79,17 @@ def _buscar_tabela_metadata(dataset: str, table_id: str) -> dict[str, Any]:
     return rows[0] if rows else {}
 
 
-def _buscar_volume_hist_7d(dataset: str, table_id: str) -> float | None:
+def _buscar_volume_particoes(dataset: str, table_id: str, intervalo_inicio: int, intervalo_fim: int) -> float | None:
     """
-    Estima média de linhas da semana anterior via partições (INFORMATION_SCHEMA).
-    Retorna None se a tabela não for particionada ou não tiver dados.
+    Soma total_rows das partições num intervalo de datas via INFORMATION_SCHEMA.
+    intervalo_inicio/fim: dias atrás (ex: 7 e 0 = últimos 7 dias; 14 e 7 = semana anterior).
+    Retorna None se a tabela não for particionada ou não tiver dados no intervalo.
     """
+    if intervalo_fim == 0:
+        fim_clause = "CURRENT_DATE()"
+    else:
+        fim_clause = f"DATE_SUB(CURRENT_DATE(), INTERVAL {intervalo_fim} DAY)"
+
     sql = f"""
         SELECT
             SUM(total_rows) AS total_rows
@@ -89,13 +98,13 @@ def _buscar_volume_hist_7d(dataset: str, table_id: str) -> float | None:
             table_name = '{table_id}'
             AND partition_id != '__NULL__'
             AND PARSE_DATE('%Y%m%d', partition_id) BETWEEN
-                DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY) AND
-                DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+                DATE_SUB(CURRENT_DATE(), INTERVAL {intervalo_inicio} DAY) AND
+                {fim_clause}
     """
     try:
         rows = executar_query(
             sql,
-            cache_key=f"vol_hist_{dataset}_{table_id}",
+            cache_key=f"vol_part_{dataset}_{table_id}_{intervalo_inicio}_{intervalo_fim}",
             ttl=settings.CACHE_TTL_METADATA,
         )
         if rows and rows[0].get("total_rows") is not None:
@@ -119,6 +128,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
             "cadencia": cadencia,
             "ultima_atualizacao": None,
             "volume": None,
+            "volume_atual_7d": None,
             "variacao_pct": None,
             "media_7d": None,
             "horas_sem_atualizacao": None,
@@ -133,14 +143,24 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     horas = (agora - last_mod).total_seconds() / 3600
     volume = int(meta.get("row_count") or 0)
 
-    media_7d = _buscar_volume_hist_7d(cfg["dataset"], cfg["table_id"])
-    variacao_pct = None
-    if media_7d and media_7d > 0:
-        variacao_pct = round((volume - media_7d) / media_7d * 100, 2)
-
     sev_fresh = _severidade_freshness(horas, cadencia)
-    sev_vol = "ok" if variacao_pct is None else _severidade_volume(variacao_pct)
-    severidade = _pior_severidade(sev_fresh, sev_vol)
+
+    if cadencia == "mensal":
+        # Backup mensal com substituição: não há carga anterior disponível para comparar.
+        # Severidade determinada apenas pelo freshness.
+        volume_atual_7d = None
+        media_7d = None
+        variacao_pct = None
+        severidade = sev_fresh
+    else:
+        volume_atual_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 7, 0)
+        media_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 14, 7)
+        variacao_pct = None
+        volume_comparacao = volume_atual_7d if volume_atual_7d is not None else volume
+        if media_7d and media_7d > 0:
+            variacao_pct = round((volume_comparacao - media_7d) / media_7d * 100, 2)
+        sev_vol = "ok" if variacao_pct is None else _severidade_volume(variacao_pct)
+        severidade = _pior_severidade(sev_fresh, sev_vol)
 
     return {
         "nome": cfg["nome"],
@@ -150,11 +170,38 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "cadencia": cadencia,
         "ultima_atualizacao": last_mod.isoformat(),
         "volume": volume,
+        "volume_atual_7d": int(volume_atual_7d) if volume_atual_7d is not None else None,
         "variacao_pct": variacao_pct,
         "media_7d": media_7d,
         "horas_sem_atualizacao": round(horas, 1),
         "severidade": severidade,
     }
+
+
+@router.get("/historico")
+def get_historico_volume(dataset: str, table_id: str, dias: int = 30):
+    """
+    Retorna o volume diário de uma tabela particionada via INFORMATION_SCHEMA.PARTITIONS.
+    Custo zero — metadata only.
+    """
+    sql = f"""
+        SELECT
+            PARSE_DATE('%Y%m%d', partition_id) AS data,
+            SUM(total_rows) AS volume
+        FROM `{PROJECT}.{dataset}.INFORMATION_SCHEMA.PARTITIONS`
+        WHERE
+            table_name = '{table_id}'
+            AND partition_id != '__NULL__'
+            AND PARSE_DATE('%Y%m%d', partition_id) >= DATE_SUB(CURRENT_DATE(), INTERVAL {dias} DAY)
+        GROUP BY 1
+        ORDER BY 1
+    """
+    rows = executar_query(
+        sql,
+        cache_key=f"historico_{dataset}_{table_id}_{dias}",
+        ttl=settings.CACHE_TTL_METADATA,
+    )
+    return [{"data": str(r["data"]), "volume": int(r["volume"] or 0)} for r in rows]
 
 
 @router.get("/status")

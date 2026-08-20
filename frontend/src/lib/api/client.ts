@@ -38,6 +38,7 @@ export interface FonteStatusAPI {
   cadencia: "diaria" | "mensal";
   ultima_atualizacao: string | null;
   volume: number | null;
+  volume_atual_7d: number | null;
   variacao_pct: number | null;
   media_7d: number | null;
   horas_sem_atualizacao: number | null;
@@ -149,9 +150,6 @@ export interface EntradaSaidaAPI {
   data: string;
   segmento: string;
   entradas: number;
-  saidas_encerramento: number;
-  saidas_expiracao: number;
-  saidas_desaparecimento: number;
 }
 
 export interface GestacaoMonitoramentoAPI {
@@ -184,7 +182,6 @@ export interface UnidadeAPI {
   ultima_atividade: string | null;
   horas_sem_evento: number;
   severidade: "ok" | "aviso" | "alerta" | "critico";
-  populacao: number | null;
 }
 
 // ─── Funções de busca ─────────────────────────────────────────────────────────
@@ -193,6 +190,8 @@ export const api = {
   fontes: {
     status: () => get<FonteStatusAPI[]>("/fontes/status"),
     modelos: () => get<ExecucaoModeloAPI[]>("/fontes/modelos"),
+    historico: (dataset: string, table_id: string, dias = 30) =>
+      get<{ data: string; volume: number }[]>(`/fontes/historico?dataset=${dataset}&table_id=${table_id}&dias=${dias}`),
   },
   populacao: {
     atual: () => get<PopulacaoAtualAPI>("/populacao/atual"),

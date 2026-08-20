@@ -32,7 +32,7 @@ export const fontesStatus: FonteStatus[] = [
     horas_sem_atualizacao: 42,
   },
   {
-    nome: "Vitacare - Testes Rápidos",
+    nome: "Vitacare - Testes Rápidos (histórico)",
     tabela: "raw_prontuario_vitacare_historico__testerapido",
     ultima_atualizacao: "2026-08-15T22:14:00",
     volume: 389_201,
@@ -40,6 +40,26 @@ export const fontesStatus: FonteStatus[] = [
     media_7d: 396_000,
     severidade: "critico",
     horas_sem_atualizacao: 42,
+  },
+  {
+    nome: "Vitacare API - Testes Rápidos",
+    tabela: "raw_prontuario_vitacare_api__testerapido",
+    ultima_atualizacao: "2026-08-17T04:50:00",
+    volume: 47_832,
+    variacao_pct: 1.2,
+    media_7d: 47_260,
+    severidade: "ok",
+    horas_sem_atualizacao: 11,
+  },
+  {
+    nome: "Vitacare API - Acto (ponte)",
+    tabela: "raw_prontuario_vitacare_api__acto",
+    ultima_atualizacao: "2026-08-17T04:50:00",
+    volume: 284_517,
+    variacao_pct: 0.9,
+    media_7d: 281_980,
+    severidade: "ok",
+    horas_sem_atualizacao: 11,
   },
   {
     nome: "Vitacare - Pacientes",
@@ -52,7 +72,7 @@ export const fontesStatus: FonteStatus[] = [
     horas_sem_atualizacao: 11,
   },
   {
-    nome: "Vacinação (CIT/SIPNI)",
+    nome: "Vacinação",
     tabela: "mart_cit__vacinacao",
     ultima_atualizacao: "2026-08-16T18:45:00",
     volume: 8_234_901,
@@ -104,6 +124,16 @@ export const execucoesModelos: ExecucaoModelo[] = [
     variacao_pct: -1.24,
     severidade: "critico",
   },
+  {
+    modelo: "mart_iplanrio_paciente",
+    ultima_execucao: "2026-08-17T06:15:00",
+    penultima_execucao: "2026-08-16T06:10:00",
+    intervalo_horas: 24.1,
+    volume_atual: 2_943_201,
+    volume_anterior: 2_941_588,
+    variacao_pct: 0.05,
+    severidade: "ok",
+  },
 ];
 
 function gerarHistoricoVolume(base: number, dias: number, tendencia = 0.001) {
@@ -128,6 +158,8 @@ export const historicoVolumeFontes: Record<string, { data: string; volume: numbe
     { data: "2026-08-16", volume: 1_203_441 },
     { data: "2026-08-17", volume: 1_203_441 },
   ].slice(-30),
+  raw_prontuario_vitacare_api__testerapido: gerarHistoricoVolume(47_000, 30, 0.0008),
+  raw_prontuario_vitacare_api__acto: gerarHistoricoVolume(281_000, 30, 0.0006),
   mart_cit__vacinacao: gerarHistoricoVolume(8_100_000, 30, 0.0005),
   mart_bi_gestacoes__gestacoes: gerarHistoricoVolume(42_200, 30, 0.0003),
 };
