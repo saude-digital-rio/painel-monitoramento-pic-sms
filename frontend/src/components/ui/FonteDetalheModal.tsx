@@ -4,6 +4,25 @@ import { X } from "lucide-react";
 import { SeveridadeBadge } from "./Badge";
 import type { FonteStatusAPI, Severidade } from "@/lib/api/client";
 
+const NOTAS_FONTE: Record<string, string> = {
+  "int_prontuario_vitacare__paciente":
+    "Utilizado na definição da população-alvo (gestação, puerpério e infância).",
+};
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="relative group ml-1.5 inline-flex items-center align-middle">
+      <span className="w-3.5 h-3.5 rounded-full border border-gray-400 text-gray-400 text-[9px] font-bold flex items-center justify-center cursor-default select-none leading-none">
+        i
+      </span>
+      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 rounded-lg bg-gray-900 text-white text-xs leading-relaxed px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50 shadow-lg whitespace-normal">
+        {text}
+        <span className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-gray-900" />
+      </span>
+    </span>
+  );
+}
+
 function sevFreshness(horas: number | null, cadencia: string): Severidade {
   if (horas === null) return "alerta";
   if (cadencia === "mensal") return horas < 31 * 24 ? "ok" : "critico";
@@ -40,6 +59,23 @@ function LinhaInfo({ label, valor }: { label: string; valor: string }) {
     <div className="flex items-center justify-between py-1.5">
       <span className="text-xs text-gray-500">{label}</span>
       <span className="text-xs font-mono text-gray-700">{valor}</span>
+    </div>
+  );
+}
+
+function LimitesCadastros() {
+  return (
+    <div className="py-1.5">
+      <span className="text-xs text-gray-500">Limites</span>
+      <div className="mt-1 space-y-1 pl-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-gray-400 shrink-0">queda:</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">ok &lt; 20%</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium">aviso 20–30%</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">alerta 30–50%</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">crítico &gt; 50%</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -96,16 +132,37 @@ interface Props {
 }
 
 export function FonteDetalheModal({ fonte, onClose }: Props) {
+  const nota = NOTAS_FONTE[fonte.tabela] ?? null;
   const horas = fonte.horas_sem_atualizacao;
   const mensal = fonte.cadencia === "mensal";
   const consolidada = fonte.tipo === "consolidada";
+  const paciente = fonte.tipo === "paciente";
   const semVolumeSev = mensal || consolidada;
   const sfresh = sevFreshness(horas, fonte.cadencia);
-  const svol = semVolumeSev ? "ok" : sevVolume(fonte.variacao_pct);
-  const motivo = semVolumeSev ? "freshness" : (ORDEM[sfresh] >= ORDEM[svol] ? "freshness" : "volume");
+
+  // Para paciente: severidade dos cadastros vem do backend
+  const scad: Severidade = (paciente && fonte.severidade_cadastros) ? fonte.severidade_cadastros : "ok";
+
+  const svol: Severidade = paciente ? scad : (semVolumeSev ? "ok" : sevVolume(fonte.variacao_pct));
+
+  let motivo: string;
+  if (paciente) {
+    motivo = ORDEM[sfresh] >= ORDEM[scad] ? "atualizações" : "cadastros";
+  } else if (semVolumeSev) {
+    motivo = "atualizações";
+  } else {
+    motivo = ORDEM[sfresh] >= ORDEM[svol] ? "atualizações" : "volume";
+  }
 
   let valorVolumeDiag: string;
-  if (!semVolumeSev && fonte.variacao_pct !== null) {
+  if (paciente) {
+    if (fonte.variacao_cadastros != null) {
+      const sinal = fonte.variacao_cadastros > 0 ? "+" : "";
+      valorVolumeDiag = `${sinal}${fonte.variacao_cadastros.toFixed(1)}% vs média de 4 semanas`;
+    } else {
+      valorVolumeDiag = "Sem dados";
+    }
+  } else if (!semVolumeSev && fonte.variacao_pct !== null) {
     const sinal = fonte.variacao_pct > 0 ? "+" : "";
     valorVolumeDiag = `Variação semanal: ${sinal}${fonte.variacao_pct.toFixed(1)}%`;
   } else if (fonte.volume !== null) {
@@ -121,7 +178,10 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
         {/* Header */}
         <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 truncate">{fonte.nome}</p>
+            <div className="flex items-center gap-0.5 min-w-0">
+              <p className="font-semibold text-gray-900 truncate">{fonte.nome}</p>
+              {nota && <InfoTooltip text={nota} />}
+            </div>
             <p className="text-xs font-mono text-gray-400 mt-0.5 truncate">{fonte.tabela}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -138,12 +198,12 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Diagnóstico</p>
             <div className="bg-gray-50 rounded-xl p-3 space-y-1">
               <LinhaDiagnostico
-                label="Freshness"
+                label="Atualizações"
                 valor={horas !== null ? `${horas.toFixed(1)}h sem atualização` : "Sem dados"}
                 sev={sfresh}
               />
               <LinhaDiagnostico
-                label="Volume"
+                label={paciente ? "Cadastros" : "Volume"}
                 valor={valorVolumeDiag}
                 sev={svol}
                 hideBadge={mensal}
@@ -156,7 +216,7 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
 
           {/* Freshness */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Freshness</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Atualizações</p>
             <div className="bg-gray-50 rounded-xl p-3 space-y-0.5">
               <LinhaInfo label="Última atualização" valor={fonte.ultima_atualizacao ? new Date(fonte.ultima_atualizacao).toLocaleString("pt-BR") : "—"} />
               <LinhaInfo label="Sem atualização há" valor={horas !== null ? `${horas.toFixed(1)}h` : "—"} />
@@ -208,6 +268,35 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
                     </>
                   );
                 })()}
+              </div>
+            ) : paciente ? (
+              <div className="bg-gray-50 rounded-xl p-3 space-y-0.5">
+                <div className="flex items-center justify-between pb-2.5 mb-1 border-b border-gray-200">
+                  <span className="text-xs text-gray-500">Volume atual</span>
+                  <span className="text-xs font-semibold text-gray-800 font-mono">
+                    {fonte.volume !== null ? fonte.volume.toLocaleString("pt-BR") : "—"}
+                  </span>
+                </div>
+                <LinhaInfo
+                  label="Cadastros esta semana até hoje"
+                  valor={fonte.cadastros_semana_atual !== undefined ? fonte.cadastros_semana_atual.toLocaleString("pt-BR") : "—"}
+                />
+                <LinhaInfo
+                  label="Média dos mesmos períodos — últ. 4 semanas"
+                  valor={fonte.media_4_semanas !== undefined ? Math.round(fonte.media_4_semanas).toLocaleString("pt-BR") : "—"}
+                />
+                <LinhaInfo
+                  label="Variação"
+                  valor={
+                    fonte.variacao_cadastros != null
+                      ? `${fonte.variacao_cadastros > 0 ? "+" : ""}${fonte.variacao_cadastros.toFixed(1)}%`
+                      : "—"
+                  }
+                />
+                <LimitesCadastros />
+                <p className="text-[10px] text-gray-400 pt-0.5 leading-relaxed">
+                  Comparação baseada na data de cadastro inicial, utilizando períodos equivalentes das últimas 4 semanas.
+                </p>
               </div>
             ) : mensal ? (
               <div className="bg-gray-50 rounded-xl p-3 space-y-2">

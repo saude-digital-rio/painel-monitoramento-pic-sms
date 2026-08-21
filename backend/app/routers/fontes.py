@@ -111,6 +111,80 @@ def _buscar_volume_particoes(dataset: str, table_id: str, intervalo_inicio: int,
     return None
 
 
+def _severidade_cadastros(variacao_pct: float | None, atual: int, media: float) -> str:
+    if atual == 0 and media > 0:
+        return "critico"
+    if variacao_pct is None:
+        return "ok"
+    if variacao_pct > -20:
+        return "ok"
+    if variacao_pct > -30:
+        return "aviso"
+    if variacao_pct > -50:
+        return "alerta"
+    return "critico"
+
+
+def _buscar_cadastros_paciente(dataset: str, table_id: str) -> dict:
+    """
+    Novos cadastros: semana atual (segunda até hoje) vs média dos mesmos
+    períodos nas 4 semanas anteriores. Scan em data_cadastro_inicial apenas.
+    """
+    sql = f"""
+        SELECT
+            COUNTIF(
+                DATE(data_cadastro_inicial)
+                    BETWEEN DATE_TRUNC(CURRENT_DATE(), ISOWEEK) AND CURRENT_DATE()
+            ) AS cadastros_semana_atual,
+            COUNTIF(
+                DATE(data_cadastro_inicial)
+                    BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), ISOWEEK), INTERVAL 7 DAY)
+                        AND DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+            ) AS cadastros_w1,
+            COUNTIF(
+                DATE(data_cadastro_inicial)
+                    BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), ISOWEEK), INTERVAL 14 DAY)
+                        AND DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
+            ) AS cadastros_w2,
+            COUNTIF(
+                DATE(data_cadastro_inicial)
+                    BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), ISOWEEK), INTERVAL 21 DAY)
+                        AND DATE_SUB(CURRENT_DATE(), INTERVAL 21 DAY)
+            ) AS cadastros_w3,
+            COUNTIF(
+                DATE(data_cadastro_inicial)
+                    BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), ISOWEEK), INTERVAL 28 DAY)
+                        AND DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)
+            ) AS cadastros_w4
+        FROM `{PROJECT}.{dataset}.{table_id}`
+    """
+    try:
+        rows = executar_query(
+            sql,
+            cache_key=f"cadastros_4sem_{dataset}_{table_id}",
+            ttl=settings.CACHE_TTL_METADATA,
+        )
+        if not rows:
+            return {}
+        r = rows[0]
+        atual = int(r.get("cadastros_semana_atual") or 0)
+        w1 = int(r.get("cadastros_w1") or 0)
+        w2 = int(r.get("cadastros_w2") or 0)
+        w3 = int(r.get("cadastros_w3") or 0)
+        w4 = int(r.get("cadastros_w4") or 0)
+        media = (w1 + w2 + w3 + w4) / 4
+        variacao = round((atual - media) / media * 100, 1) if media > 0 else None
+        sev = _severidade_cadastros(variacao, atual, media)
+        return {
+            "cadastros_semana_atual": atual,
+            "media_4_semanas": round(media, 1),
+            "variacao_cadastros": variacao,
+            "severidade_cadastros": sev,
+        }
+    except Exception:
+        return {}
+
+
 def _buscar_volume_por_origem(dataset: str, table_id: str) -> dict[str, int] | None:
     """
     Para tabelas consolidadas: retorna volume por valor do campo `origem`.
@@ -166,6 +240,8 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     sev_fresh = _severidade_freshness(horas, cadencia)
     tipo = cfg.get("tipo", "padrao")
 
+    extra: dict = {}
+
     if tipo == "consolidada":
         # Tabela consolidada: severidade só pelo freshness, volume por origem via query.
         volume_atual_7d = None
@@ -173,6 +249,16 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         variacao_pct = None
         volume_por_origem = _buscar_volume_por_origem(cfg["dataset"], cfg["table_id"])
         severidade = sev_fresh
+    elif tipo == "paciente":
+        # Tabela de pacientes: reconstruída diariamente, sem histórico de COUNT(*).
+        # Volume via __TABLES__; comparação por novos cadastros (data_cadastro_inicial).
+        volume_atual_7d = None
+        media_7d = None
+        variacao_pct = None
+        volume_por_origem = None
+        extra = _buscar_cadastros_paciente(cfg["dataset"], cfg["table_id"])
+        sev_cad = extra.get("severidade_cadastros", "ok")
+        severidade = _pior_severidade(sev_fresh, sev_cad)
     elif cadencia == "mensal":
         # Backup mensal com substituição: não há carga anterior disponível para comparar.
         volume_atual_7d = None
@@ -206,6 +292,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "volume_por_origem": volume_por_origem,
         "horas_sem_atualizacao": round(horas, 1),
         "severidade": severidade,
+        **extra,
     }
 
 

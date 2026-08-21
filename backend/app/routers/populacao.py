@@ -252,6 +252,101 @@ def get_gestacoes():
     }
 
 
+@router.get("/perfil-infancia")
+def get_perfil_infancia():
+    """
+    Perfil da população infantil (< 6 anos):
+    - distribuição por faixa etária (0-1, 1-2, 2-4, 4-6)
+    - crianças que completam 6 anos nos próximos 30 dias
+    - nascimentos nos últimos 30 dias (data_nascimento, não data de cadastro)
+    - crianças < 6 anos sem CPF (camada raw, antes do filtro cpf IS NOT NULL)
+    """
+    # Faixas etárias + próximas saídas + nascimentos — intermediario (cpf != NULL)
+    sql_int = f"""
+        SELECT
+            COUNTIF(
+                DATE_ADD(data_nascimento, INTERVAL 1 YEAR) > CURRENT_DATE()
+            ) AS faixa_0_1,
+            COUNTIF(
+                DATE_ADD(data_nascimento, INTERVAL 1 YEAR) <= CURRENT_DATE()
+                AND DATE_ADD(data_nascimento, INTERVAL 2 YEAR) > CURRENT_DATE()
+            ) AS faixa_1_2,
+            COUNTIF(
+                DATE_ADD(data_nascimento, INTERVAL 2 YEAR) <= CURRENT_DATE()
+                AND DATE_ADD(data_nascimento, INTERVAL 4 YEAR) > CURRENT_DATE()
+            ) AS faixa_2_4,
+            COUNTIF(
+                DATE_ADD(data_nascimento, INTERVAL 4 YEAR) <= CURRENT_DATE()
+            ) AS faixa_4_6,
+            COUNTIF(
+                DATE_ADD(data_nascimento, INTERVAL 6 YEAR)
+                    BETWEEN CURRENT_DATE() AND DATE_ADD(CURRENT_DATE(), INTERVAL 30 DAY)
+            ) AS completam_6_anos_30d,
+            COUNTIF(
+                data_nascimento >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+            ) AS nascimentos_30d
+        FROM `{PROJECT}.intermediario_prontuario_vitacare.paciente`
+        WHERE data_nascimento > DATE_SUB(CURRENT_DATE(), INTERVAL 6 YEAR)
+    """
+    # Crianças < 6 anos sem CPF — camada raw (antes do filtro cpf IS NOT NULL)
+    sql_sem_cpf = f"""
+        SELECT COUNT(DISTINCT id_paciente_global) AS sem_cpf
+        FROM `{PROJECT}.brutos_prontuario_vitacare.paciente`
+        WHERE data_nascimento > DATE_SUB(CURRENT_DATE(), INTERVAL 6 YEAR)
+          AND cpf IS NULL
+    """
+    rows_int = executar_query(sql_int, cache_key="perfil_infancia", ttl=settings.CACHE_TTL_SEGUNDOS)
+    rows_cpf = executar_query(sql_sem_cpf, cache_key="perfil_infancia_sem_cpf", ttl=settings.CACHE_TTL_SEGUNDOS)
+
+    r = rows_int[0] if rows_int else {}
+    sem_cpf = int(rows_cpf[0].get("sem_cpf") or 0) if rows_cpf else 0
+
+    return {
+        "faixa_0_1": int(r.get("faixa_0_1") or 0),
+        "faixa_1_2": int(r.get("faixa_1_2") or 0),
+        "faixa_2_4": int(r.get("faixa_2_4") or 0),
+        "faixa_4_6": int(r.get("faixa_4_6") or 0),
+        "completam_6_anos_30d": int(r.get("completam_6_anos_30d") or 0),
+        "nascimentos_30d": int(r.get("nascimentos_30d") or 0),
+        "sem_cpf_menores_6": sem_cpf,
+    }
+
+
+@router.get("/movimentacao-infancia")
+def get_movimentacao_infancia():
+    """
+    Entradas e saídas da população-alvo de Infância na semana corrente.
+
+    Entrada: criança nascida na semana atual (data_nascimento entre segunda e hoje).
+    Saída:   criança que completou 6 anos na semana atual
+             (DATE_ADD(data_nascimento, INTERVAL 6 YEAR) entre segunda e hoje).
+
+    Fonte: intermediario_prontuario_vitacare.paciente
+    Regra de inclusão do modelo: cpf IS NOT NULL AND id_cnes IS NOT NULL.
+    """
+    sql = f"""
+        SELECT
+            COUNTIF(
+                DATE(data_nascimento)
+                    BETWEEN DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)) AND CURRENT_DATE()
+            ) AS entraram,
+            COUNTIF(
+                DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR)
+                    BETWEEN DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)) AND CURRENT_DATE()
+            ) AS sairam
+        FROM `{PROJECT}.intermediario_prontuario_vitacare.paciente`
+    """
+    rows = executar_query(sql, cache_key="movimentacao_infancia", ttl=settings.CACHE_TTL_SEGUNDOS)
+    r = rows[0] if rows else {}
+    entraram = int(r.get("entraram") or 0)
+    sairam = int(r.get("sairam") or 0)
+    return {
+        "entraram": entraram,
+        "sairam": sairam,
+        "saldo": entraram - sairam,
+    }
+
+
 @router.get("/cadastro")
 def get_cadastro():
     """Qualidade do cadastro Vitacare."""

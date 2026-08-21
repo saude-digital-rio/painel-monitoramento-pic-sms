@@ -27,7 +27,7 @@ export default function FontesPage() {
     <div>
       <Header
         title="Fontes e Atualização"
-        subtitle="Freshness, volume e comportamento das tabelas-fonte"
+        subtitle="Atualizações, volume e comportamento das tabelas-fonte"
         dataRef={fontes[0]?.ultima_atualizacao ?? undefined}
       />
 
@@ -81,7 +81,7 @@ export default function FontesPage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fonte / Tabela</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Volume</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Freshness</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Atualizações</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               </tr>
             </thead>
@@ -138,7 +138,7 @@ export default function FontesPage() {
       )}
 
       {/* Legenda de severidade */}
-      <Card title="Regras de alerta de freshness" className="mt-6" tooltip="Critérios para classificar o status de cada fonte: aviso (24–48h sem atualização), alerta (48–72h) ou crítico (>72h ou variação >±10%).">
+      <Card title="Regras de alerta de atualização" className="mt-6" tooltip="Critérios para classificar o status de cada fonte: aviso (24–48h sem atualização), alerta (48–72h) ou crítico (>72h ou variação >±10%).">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 mt-0.5 shrink-0" />

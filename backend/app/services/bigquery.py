@@ -154,6 +154,7 @@ FONTE_CONFIGS = [
         "dataset": "intermediario_prontuario_vitacare",
         "table_id": "paciente",
         "cadencia": "diaria",
+        "tipo": "paciente",
     },
     {
         "nome": "Vacinação",

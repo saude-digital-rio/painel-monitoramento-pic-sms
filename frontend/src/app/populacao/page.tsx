@@ -6,6 +6,8 @@ import { EntradasSemanaSection } from "./EntradasSemanaSection";
 import { ConsistenciaAsync } from "./ConsistenciaAsync";
 import { GestacaoQualidadeAsync } from "./GestacaoQualidadeAsync";
 import { QualidadeCadastroAsync } from "./QualidadeCadastroAsync";
+import { MovimentacaoInfanciaAsync } from "./MovimentacaoInfanciaAsync";
+import { PerfilInfanciaAsync } from "./PerfilInfanciaAsync";
 
 function CardSkeleton() {
   return (
@@ -34,6 +36,13 @@ export default async function PopulacaoPage() {
         dataRef={popReal?.data_referencia ?? undefined}
       />
 
+      <p className="text-xs text-gray-400 -mt-4 mb-6 leading-relaxed">
+        Os números refletem os dados enviados pela SMS ao IPLAN para a consolidação do programa.
+        Eles não correspondem à população final do PIC, que é definida após a aplicação de critérios
+        socioeconômicos adicionais e a integração com dados de outras dimensões do RMI, como
+        assistência social e educação.
+      </p>
+
       <PopulacaoKpis data={popReal} />
 
       {/* Entradas por semana */}
@@ -51,10 +60,20 @@ export default async function PopulacaoPage() {
         </Suspense>
       </div>
 
-      {/* Qualidade do cadastro Vitacare — largura total */}
-      <div className="mb-6">
+      {/* Movimentação da Infância | Qualidade do cadastro Vitacare */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Suspense fallback={<CardSkeleton />}>
+          <MovimentacaoInfanciaAsync />
+        </Suspense>
         <Suspense fallback={<CardSkeleton />}>
           <QualidadeCadastroAsync />
+        </Suspense>
+      </div>
+
+      {/* Perfil da população infantil */}
+      <div className="mb-6">
+        <Suspense fallback={<CardSkeleton />}>
+          <PerfilInfanciaAsync />
         </Suspense>
       </div>
     </div>

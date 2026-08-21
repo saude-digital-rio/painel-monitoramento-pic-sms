@@ -3,7 +3,7 @@ import type { Alerta } from "./types";
 export const alertas: Alerta[] = [
   {
     id: "A001",
-    categoria: "Freshness de Fonte",
+    categoria: "Atualização de Fonte",
     descricao: "raw_prontuario_vitacare_historico__procedimentos_clinicos sem atualização há 42h (limite: 24h)",
     severidade: "critico",
     data: "2026-08-17T06:00:00",
@@ -13,7 +13,7 @@ export const alertas: Alerta[] = [
   },
   {
     id: "A002",
-    categoria: "Freshness de Fonte",
+    categoria: "Atualização de Fonte",
     descricao: "raw_prontuario_vitacare_historico__acto sem atualização há 42h",
     severidade: "critico",
     data: "2026-08-17T06:00:00",
@@ -23,7 +23,7 @@ export const alertas: Alerta[] = [
   },
   {
     id: "A003",
-    categoria: "Freshness de Fonte",
+    categoria: "Atualização de Fonte",
     descricao: "raw_prontuario_vitacare_historico__testerapido sem atualização há 42h",
     severidade: "critico",
     data: "2026-08-17T06:00:00",
@@ -93,7 +93,7 @@ export const alertas: Alerta[] = [
   },
   {
     id: "A010",
-    categoria: "Freshness de Fonte",
+    categoria: "Atualização de Fonte",
     descricao: "mart_cit__vacinacao sem atualização há 26h (limite: 24h)",
     severidade: "alerta",
     data: "2026-08-17T06:00:00",

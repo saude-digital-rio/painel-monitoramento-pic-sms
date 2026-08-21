@@ -110,7 +110,7 @@ export default async function VisaoGeralPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status das fontes */}
-        <Card title="Status das fontes" subtitle="Freshness e alertas de volume — clique para detalhes" padding={false} tooltip="Tempo desde a última atualização das tabelas de dados (Vitacare, SIPNI). Alertas indicam dados potencialmente desatualizados.">
+        <Card title="Status das fontes" subtitle="Atualizações e alertas de volume — clique para detalhes" padding={false} tooltip="Tempo desde a última atualização das tabelas de dados (Vitacare, SIPNI). Alertas indicam dados potencialmente desatualizados.">
           {fontesReal ? (
             <FontesStatusCard fontes={fontesReal} />
           ) : (

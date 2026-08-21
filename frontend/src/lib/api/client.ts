@@ -43,7 +43,7 @@ export interface FonteStatusAPI {
   dataset: string;
   table_id: string;
   cadencia: "diaria" | "mensal";
-  tipo?: "consolidada" | "padrao";
+  tipo?: "consolidada" | "padrao" | "paciente";
   ultima_atualizacao: string | null;
   volume: number | null;
   volume_atual_7d: number | null;
@@ -53,6 +53,11 @@ export interface FonteStatusAPI {
   horas_sem_atualizacao: number | null;
   severidade: "ok" | "aviso" | "alerta" | "critico";
   erro?: string;
+  // Campos exclusivos da fonte Vitacare - Pacientes (tipo "paciente")
+  cadastros_semana_atual?: number;
+  media_4_semanas?: number;
+  variacao_cadastros?: number | null;
+  severidade_cadastros?: "ok" | "aviso" | "alerta" | "critico";
 }
 
 export interface ExecucaoModeloAPI {
@@ -174,6 +179,22 @@ export interface GestacaoMonitoramentoAPI {
   sem_equipe: number;
 }
 
+export interface PerfilInfanciaAPI {
+  faixa_0_1: number;
+  faixa_1_2: number;
+  faixa_2_4: number;
+  faixa_4_6: number;
+  completam_6_anos_30d: number;
+  nascimentos_30d: number;
+  sem_cpf_menores_6: number;
+}
+
+export interface MovimentacaoInfanciaAPI {
+  entraram: number;
+  sairam: number;
+  saldo: number;
+}
+
 export interface CadastroQualidadeAPI {
   total_pacientes: number;
   nascimento_invalido: number;
@@ -211,6 +232,8 @@ export const api = {
     consistencia: () => get<ConsistenciaPopulacaoAPI>("/populacao/consistencia"),
     entradasSaidas: (semanas = 12) => get<EntradaSaidaAPI[]>(`/populacao/entradas-saidas?semanas=${semanas}`),
     gestacoes: () => get<GestacaoMonitoramentoAPI>("/populacao/gestacoes"),
+    perfilInfancia: () => get<PerfilInfanciaAPI>("/populacao/perfil-infancia"),
+    movimentacaoInfancia: () => get<MovimentacaoInfanciaAPI>("/populacao/movimentacao-infancia"),
     cadastro: () => get<CadastroQualidadeAPI>("/populacao/cadastro"),
     sobreposicao: () => get<{ cpf: string; segmentos: string[] }[]>("/populacao/sobreposicao"),
   },
