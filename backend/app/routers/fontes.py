@@ -364,16 +364,20 @@ def get_status_fontes():
 
 def _processar_modelo(cfg: dict) -> dict:
     """Consulta metadata de um modelo dbt. Roda em paralelo."""
+    tabela = f"`{PROJECT}.{cfg['dataset']}.{cfg['table_id']}`"
     campo_data = cfg.get("campo_data")
-    max_data_clause = f", MAX({campo_data}) AS ultimo_dado" if campo_data else ""
 
-    sql = f"""
-        SELECT
-            MAX(metadados.ultima_atualizacao) AS ultima_atualizacao,
-            COUNT(*) AS volume
-            {max_data_clause}
-        FROM `{PROJECT}.{cfg["dataset"]}.{cfg["table_id"]}`
-    """
+    if "sql_override" in cfg:
+        sql = cfg["sql_override"].format(PROJECT=PROJECT)
+    else:
+        max_data_clause = f", MAX({campo_data}) AS ultimo_dado" if campo_data else ""
+        sql = f"""
+            SELECT
+                MAX(metadados.ultima_atualizacao) AS ultima_atualizacao,
+                COUNT(*) AS volume
+                {max_data_clause}
+            FROM {tabela}
+        """
     rows = executar_query(
         sql,
         cache_key=f"modelo_{cfg['table_id']}",

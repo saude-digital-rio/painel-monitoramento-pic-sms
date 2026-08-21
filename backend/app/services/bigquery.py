@@ -192,4 +192,17 @@ MODEL_CONFIGS = [
         "table_id": "eventos",
         "campo_data": "data_evento",
     },
+    {
+        "modelo": "mart_iplanrio_paciente",
+        "dataset": "projeto_rmi",
+        "table_id": "paciente",
+        "sql_override": """
+            SELECT
+                MAX(p.metadados.ultima_atualizacao) AS ultima_atualizacao,
+                COUNT(*) AS volume,
+                MAX(e.datahora_ultima_atualizacao) AS ultimo_dado
+            FROM `{PROJECT}.projeto_rmi.paciente` p
+            LEFT JOIN UNNEST(p.endereco) AS e
+        """,
+    },
 ]

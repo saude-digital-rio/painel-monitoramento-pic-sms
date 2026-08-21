@@ -34,7 +34,7 @@ export default function FontesPage() {
       {/* Resumo execução modelos */}
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Modelos de saída (PIC)</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {modelos.map((m) => (
             <div key={m.modelo} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
               <div className="flex items-start justify-between gap-2 mb-3">
@@ -59,13 +59,13 @@ export default function FontesPage() {
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500">Intervalo desde execução</p>
-                  <p className={`font-semibold mt-0.5 ${m.intervalo_horas > 25 ? "text-red-600" : "text-gray-800"}`}>
-                    {m.intervalo_horas.toFixed(1)}h {m.intervalo_horas > 25 && "(⚠ > 25h)"}
+                  <p className={`font-semibold mt-0.5 ${(m.intervalo_horas ?? 0) > 25 ? "text-red-600" : "text-gray-800"}`}>
+                    {m.intervalo_horas != null ? `${m.intervalo_horas.toFixed(1)}h` : "—"}{(m.intervalo_horas ?? 0) > 25 && " (⚠ > 25h)"}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500">Volume atual</p>
-                  <p className="font-semibold text-gray-800 mt-0.5">{m.volume_atual.toLocaleString("pt-BR")}</p>
+                  <p className="font-semibold text-gray-800 mt-0.5">{m.volume_atual?.toLocaleString("pt-BR") ?? "—"}</p>
                 </div>
               </div>
             </div>
