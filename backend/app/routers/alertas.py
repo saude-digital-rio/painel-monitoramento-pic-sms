@@ -15,7 +15,6 @@ from fastapi import APIRouter
 from app.config import settings
 from app.services.bigquery import PROJECT, executar_query
 from app.routers.fontes import get_status_fontes, get_execucoes_modelos
-from app.routers.populacao import get_janelas_temporais
 from app.routers.eventos import get_consistencia_datas
 
 router = APIRouter(prefix="/alertas", tags=["Alertas"])
@@ -77,24 +76,6 @@ def _check_modelos() -> list[dict]:
             })
     return alertas
 
-
-def _check_janelas() -> list[dict]:
-    janelas = get_janelas_temporais()  # reutiliza cache_key="pop_janelas"
-    invalida = janelas["gestacao"]["duracao_zero_negativa"]
-    acima = janelas["gestacao"]["acima_300_dias"]
-    if invalida > 0 or acima > 0:
-        return [{
-            "id": "JANELA_GESTACAO",
-            "categoria": "Janelas Temporais",
-            "descricao": f"{acima} gestações com janela > 300 dias; {invalida} com duração zero/negativa",
-            "severidade": "alerta",
-            "data": _agora_iso(),
-            "tabela": "mart_iplanrio_pic__publico_alvo",
-            "segmento": "Gestacao",
-            "investigado": False,
-            "esperado": False,
-        }]
-    return []
 
 
 def _check_datas() -> list[dict]:
@@ -181,7 +162,6 @@ def _check_penta() -> list[dict]:
 _CHECKS: list[Callable[[], list[dict]]] = [
     _check_fontes,
     _check_modelos,
-    _check_janelas,
     _check_datas,
     _check_overlap,
     _check_penta,

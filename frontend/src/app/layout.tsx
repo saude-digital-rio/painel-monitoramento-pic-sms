@@ -14,7 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className="h-full">
       <body className={`${inter.className} h-full bg-gray-50 antialiased`}>
-        <div className="flex h-full min-h-screen">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" precedence="default" />
+<div className="flex h-full min-h-screen">
           <Sidebar />
           <main className="flex-1 overflow-y-auto">
             <div className="px-8 py-7 max-w-[1400px]">{children}</div>

@@ -59,7 +59,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-700 text-xs text-gray-500">
-        <p>PIC-SMS · {new Date().toLocaleDateString("pt-BR")}</p>
+        <p suppressHydrationWarning>PIC-SMS · {new Date().toLocaleDateString("pt-BR")}</p>
         <p className="mt-0.5">Dados em tempo real — BigQuery</p>
       </div>
     </aside>

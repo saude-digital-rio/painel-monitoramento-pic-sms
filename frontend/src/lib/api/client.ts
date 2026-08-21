@@ -14,11 +14,18 @@ const API_URL =
 
 async function get<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_URL}/api${path}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const res = await fetch(`${API_URL}/api${path}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as T;
+    } finally {
+      clearTimeout(timer);
+    }
   } catch {
     return null;
   }
@@ -75,10 +82,13 @@ export interface SeriePopulacaoAPI {
   total: number;
 }
 
-export interface JanelasTemporaisAPI {
-  gestacao: { total: number; duracao_zero_negativa: number; acima_300_dias: number; media_duracao_dias: number };
-  puerperio: { total: number; diferente_45_dias: number; media_duracao_dias: number };
-  infancia: { total: number; diferente_6_anos: number; media_duracao_dias: number };
+export interface ConsistenciaPopulacaoAPI {
+  cpfs_multiplos_segmentos: number;
+  cpfs_tres_segmentos: number;
+  taxa_sobreposicao: number;
+  total_cpfs: number;
+  duplicidades_mesmo_segmento: number;
+  combinacoes: { segmentos: string; quantidade_cpfs: number }[];
 }
 
 export interface SerieEventoAPI {
@@ -158,11 +168,10 @@ export interface EntradaSaidaAPI {
 export interface GestacaoMonitoramentoAPI {
   gestacoes_ativas: number;
   puerperio_ativo: number;
-  data_nula: number;
-  data_futura: number;
+  encerradas_sem_fechamento: number;
+  ativas_dpp_ultrapassada: number;
   multiplas_gestacoes_ativas: number;
-  novas_gestacoes_semana: number;
-  encerradas_semana: number;
+  sem_equipe: number;
 }
 
 export interface CadastroQualidadeAPI {
@@ -199,7 +208,7 @@ export const api = {
   populacao: {
     atual: () => get<PopulacaoAtualAPI>("/populacao/atual"),
     serie: (dias = 30) => get<SeriePopulacaoAPI[]>(`/populacao/serie?dias=${dias}`),
-    janelas: () => get<JanelasTemporaisAPI>("/populacao/janelas"),
+    consistencia: () => get<ConsistenciaPopulacaoAPI>("/populacao/consistencia"),
     entradasSaidas: (semanas = 12) => get<EntradaSaidaAPI[]>(`/populacao/entradas-saidas?semanas=${semanas}`),
     gestacoes: () => get<GestacaoMonitoramentoAPI>("/populacao/gestacoes"),
     cadastro: () => get<CadastroQualidadeAPI>("/populacao/cadastro"),

@@ -19,7 +19,7 @@ export function Header({ title, subtitle, actions, dataRef }: HeaderProps) {
         {dataRef && (
           <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-400">
             <Clock className="w-3 h-3" />
-            <span>Referência: {new Date(dataRef).toLocaleString("pt-BR")}</span>
+            <span suppressHydrationWarning>Referência: {new Date(dataRef).toLocaleString("pt-BR")}</span>
           </div>
         )}
       </div>

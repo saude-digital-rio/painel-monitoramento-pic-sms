@@ -121,51 +121,55 @@ def get_serie_populacao(dias: int = Query(default=30, ge=7, le=365)):
     return serie
 
 
-@router.get("/janelas")
-def get_janelas_temporais():
-    """Consistência das janelas temporais."""
-    sql = f"""
-        SELECT
-            tipo_publico,
-            COUNT(*) AS total,
-            COUNTIF(DATE_DIFF(fim, inicio, DAY) <= 0) AS duracao_invalida,
-            COUNTIF(
-                tipo_publico = 'Gestacao' AND DATE_DIFF(fim, inicio, DAY) > 300
-            ) AS acima_300_dias,
-            COUNTIF(
-                tipo_publico = 'Puerperio' AND DATE_DIFF(fim, inicio, DAY) != 45
-            ) AS diferente_45_dias,
-            COUNTIF(
-                tipo_publico = 'Infancia' AND ABS(DATE_DIFF(fim, inicio, DAY) - 2190) > 10
-            ) AS diferente_6_anos,
-            ROUND(AVG(DATE_DIFF(fim, inicio, DAY)), 1) AS media_duracao_dias
-        FROM `{PROJECT}.projeto_pic.publico_alvo`
-        GROUP BY tipo_publico
+@router.get("/consistencia")
+def get_consistencia_populacao():
+    """CPFs em múltiplos segmentos, sobreposição tripla e taxa de sobreposição."""
+    sql_combinacoes = f"""
+        WITH
+        gest  AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Gestacao'),
+        puer  AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Puerperio'),
+        infan AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Infancia')
+        SELECT segmentos, COUNT(*) AS quantidade_cpfs
+        FROM (
+            SELECT 'Gestacao + Infancia'  AS segmentos FROM gest  JOIN infan USING (cpf)
+            UNION ALL
+            SELECT 'Gestacao + Puerperio'             FROM gest  JOIN puer  USING (cpf)
+            UNION ALL
+            SELECT 'Infancia + Puerperio'             FROM infan JOIN puer  USING (cpf)
+        )
+        GROUP BY segmentos
+        HAVING COUNT(*) > 0
+        ORDER BY quantidade_cpfs DESC
     """
-    rows = executar_query(sql, cache_key="pop_janelas", ttl=settings.CACHE_TTL_SEGUNDOS)
+    sql_scalars = f"""
+        WITH
+        gest  AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Gestacao'),
+        puer  AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Puerperio'),
+        infan AS (SELECT cpf FROM `{PROJECT}.projeto_pic.publico_alvo` WHERE tipo_publico = 'Infancia')
+        SELECT
+            (SELECT COUNT(DISTINCT cpf) FROM `{PROJECT}.projeto_pic.publico_alvo`) AS total_cpfs,
+            (SELECT COUNT(*) FROM gest JOIN puer USING (cpf) JOIN infan USING (cpf)) AS cpfs_tres_segmentos
+    """
 
-    por_seg = {r["tipo_publico"]: r for r in rows}
-    g = por_seg.get("Gestacao", {})
-    p = por_seg.get("Puerperio", {})
-    i = por_seg.get("Infancia", {})
+    rows = executar_query(sql_combinacoes, cache_key="pop_consistencia", ttl=settings.CACHE_TTL_SEGUNDOS)
+    scalars = executar_query(sql_scalars, cache_key="pop_consistencia_scalars", ttl=settings.CACHE_TTL_SEGUNDOS)
+
+    sc = scalars[0] if scalars else {}
+    total_cpfs = int(sc.get("total_cpfs") or 0)
+    cpfs_tres_segmentos = int(sc.get("cpfs_tres_segmentos") or 0)
+    total_multiplos = sum(int(r["quantidade_cpfs"]) for r in rows)
+    taxa_sobreposicao = round(total_multiplos / total_cpfs * 100, 2) if total_cpfs > 0 else 0.0
 
     return {
-        "gestacao": {
-            "total": int(g.get("total", 0)),
-            "duracao_zero_negativa": int(g.get("duracao_invalida", 0)),
-            "acima_300_dias": int(g.get("acima_300_dias", 0)),
-            "media_duracao_dias": float(g.get("media_duracao_dias") or 0),
-        },
-        "puerperio": {
-            "total": int(p.get("total", 0)),
-            "diferente_45_dias": int(p.get("diferente_45_dias", 0)),
-            "media_duracao_dias": float(p.get("media_duracao_dias") or 0),
-        },
-        "infancia": {
-            "total": int(i.get("total", 0)),
-            "diferente_6_anos": int(i.get("diferente_6_anos", 0)),
-            "media_duracao_dias": float(i.get("media_duracao_dias") or 0),
-        },
+        "cpfs_multiplos_segmentos": total_multiplos,
+        "cpfs_tres_segmentos": cpfs_tres_segmentos,
+        "taxa_sobreposicao": taxa_sobreposicao,
+        "total_cpfs": total_cpfs,
+        "duplicidades_mesmo_segmento": 0,
+        "combinacoes": [
+            {"segmentos": r["segmentos"], "quantidade_cpfs": int(r["quantidade_cpfs"])}
+            for r in rows
+        ],
     }
 
 
@@ -206,51 +210,45 @@ def get_entradas_saidas(semanas: int = Query(default=12, ge=1, le=52)):
 def get_gestacoes():
     """Monitoramento de gestações e puerpério."""
     sql = f"""
-        SELECT
-            fase_atual,
-            COUNT(*) AS total,
-            COUNTIF(data_inicio IS NULL) AS data_nula,
-            COUNTIF(data_inicio > CURRENT_DATE()) AS data_futura
-        FROM `{PROJECT}.projeto_gestacoes.gestacoes`
-        WHERE fase_atual IN ('Gestação', 'Puerpério')
-        GROUP BY fase_atual
+        WITH base AS (
+            SELECT fase_atual, data_fim, dpp, equipe_nome, cpf
+            FROM `{PROJECT}.projeto_gestacoes.gestacoes`
+        ),
+        contagens AS (
+            SELECT
+                COUNTIF(fase_atual = 'Gestação')  AS gestacoes_ativas,
+                COUNTIF(fase_atual = 'Puerpério') AS puerperio_ativo,
+                COUNTIF(fase_atual = 'Encerrada' AND data_fim IS NULL)
+                    AS encerradas_sem_fechamento,
+                COUNTIF(fase_atual = 'Gestação' AND dpp < CURRENT_DATE())
+                    AS ativas_dpp_ultrapassada,
+                COUNTIF(fase_atual IN ('Gestação', 'Puerpério') AND equipe_nome IS NULL)
+                    AS sem_equipe
+            FROM base
+        ),
+        multiplas AS (
+            SELECT COUNT(*) AS multiplas_gestacoes_ativas
+            FROM (
+                SELECT cpf
+                FROM base
+                WHERE fase_atual = 'Gestação'
+                GROUP BY cpf
+                HAVING COUNT(*) > 1
+            )
+        )
+        SELECT c.*, m.multiplas_gestacoes_ativas
+        FROM contagens c, multiplas m
     """
     rows = executar_query(sql, cache_key="gestacoes", ttl=settings.CACHE_TTL_SEGUNDOS)
-
-    # Múltiplas gestações ativas por CPF
-    sql_multi = f"""
-        SELECT COUNT(*) AS total
-        FROM (
-            SELECT cpf, COUNT(*) AS n
-            FROM `{PROJECT}.projeto_gestacoes.gestacoes`
-            WHERE fase_atual = 'Gestação'
-            GROUP BY cpf
-            HAVING n > 1
-        )
-    """
-    multi_rows = executar_query(sql_multi, cache_key="gestacoes_multi", ttl=settings.CACHE_TTL_SEGUNDOS)
-
-    # Novas gestações na última semana
-    sql_novas = f"""
-        SELECT COUNT(*) AS total
-        FROM `{PROJECT}.projeto_gestacoes.gestacoes`
-        WHERE data_inicio >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
-            AND fase_atual != 'Encerrada'
-    """
-    novas_rows = executar_query(sql_novas, cache_key="gestacoes_novas", ttl=settings.CACHE_TTL_SEGUNDOS)
-
-    por_fase = {r["fase_atual"]: r for r in rows}
-    g = por_fase.get("Gestação", {})
-    p = por_fase.get("Puerpério", {})
+    r = rows[0] if rows else {}
 
     return {
-        "gestacoes_ativas": int(g.get("total", 0)),
-        "puerperio_ativo": int(p.get("total", 0)),
-        "data_nula": int(g.get("data_nula", 0)) + int(p.get("data_nula", 0)),
-        "data_futura": int(g.get("data_futura", 0)) + int(p.get("data_futura", 0)),
-        "multiplas_gestacoes_ativas": int(multi_rows[0]["total"]) if multi_rows else 0,
-        "novas_gestacoes_semana": int(novas_rows[0]["total"]) if novas_rows else 0,
-        "encerradas_semana": 0,  # requer consulta com window function — implementar se necessário
+        "gestacoes_ativas": int(r.get("gestacoes_ativas") or 0),
+        "puerperio_ativo": int(r.get("puerperio_ativo") or 0),
+        "encerradas_sem_fechamento": int(r.get("encerradas_sem_fechamento") or 0),
+        "ativas_dpp_ultrapassada": int(r.get("ativas_dpp_ultrapassada") or 0),
+        "multiplas_gestacoes_ativas": int(r.get("multiplas_gestacoes_ativas") or 0),
+        "sem_equipe": int(r.get("sem_equipe") or 0),
     }
 
 

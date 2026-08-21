@@ -70,7 +70,7 @@ export function MultiBarChart({
         <Tooltip
           contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
           labelFormatter={(v) => formatX(String(v))}
-          formatter={(v: unknown) => [typeof v === "number" ? v.toLocaleString("pt-BR") : String(v), ""]}
+          formatter={(v: unknown, name: string) => [typeof v === "number" ? v.toLocaleString("pt-BR") : String(v), name]}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {bars.map(({ key, label, color }) => (
