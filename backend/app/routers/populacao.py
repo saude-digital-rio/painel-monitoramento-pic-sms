@@ -326,6 +326,7 @@ def get_movimentacao_infancia():
     """
     sql = f"""
         SELECT
+            -- Semana atual: segunda-feira desta semana até hoje
             COUNTIF(
                 DATE(data_nascimento)
                     BETWEEN DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)) AND CURRENT_DATE()
@@ -333,17 +334,51 @@ def get_movimentacao_infancia():
             COUNTIF(
                 DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR)
                     BETWEEN DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)) AND CURRENT_DATE()
-            ) AS sairam
+            ) AS sairam,
+            -- Período equivalente das 4 semanas anteriores (mesmos dias da semana, -7/-14/-21/-28 dias)
+            COUNTIF(DATE(data_nascimento) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 7 DAY)  AND DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY))  AS entradas_w1,
+            COUNTIF(DATE(data_nascimento) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 14 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)) AS entradas_w2,
+            COUNTIF(DATE(data_nascimento) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 21 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 21 DAY)) AS entradas_w3,
+            COUNTIF(DATE(data_nascimento) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 28 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)) AS entradas_w4,
+            COUNTIF(DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 7 DAY)  AND DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY))  AS saidas_w1,
+            COUNTIF(DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 14 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)) AS saidas_w2,
+            COUNTIF(DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 21 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 21 DAY)) AS saidas_w3,
+            COUNTIF(DATE_ADD(DATE(data_nascimento), INTERVAL 6 YEAR) BETWEEN DATE_SUB(DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY)), INTERVAL 28 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)) AS saidas_w4
         FROM `{PROJECT}.intermediario_prontuario_vitacare.paciente`
     """
     rows = executar_query(sql, cache_key="movimentacao_infancia", ttl=settings.CACHE_TTL_SEGUNDOS)
     r = rows[0] if rows else {}
+
     entraram = int(r.get("entraram") or 0)
     sairam = int(r.get("sairam") or 0)
+
+    media_entradas = (
+        int(r.get("entradas_w1") or 0)
+        + int(r.get("entradas_w2") or 0)
+        + int(r.get("entradas_w3") or 0)
+        + int(r.get("entradas_w4") or 0)
+    ) / 4
+
+    media_saidas = (
+        int(r.get("saidas_w1") or 0)
+        + int(r.get("saidas_w2") or 0)
+        + int(r.get("saidas_w3") or 0)
+        + int(r.get("saidas_w4") or 0)
+    ) / 4
+
+    def variacao(atual: int, media: float):
+        if media == 0:
+            return None
+        return round((atual - media) / media * 100, 1)
+
     return {
         "entraram": entraram,
         "sairam": sairam,
         "saldo": entraram - sairam,
+        "media_entradas_4_semanas": round(media_entradas, 1),
+        "media_saidas_4_semanas": round(media_saidas, 1),
+        "variacao_entradas": variacao(entraram, media_entradas),
+        "variacao_saidas": variacao(sairam, media_saidas),
     }
 
 

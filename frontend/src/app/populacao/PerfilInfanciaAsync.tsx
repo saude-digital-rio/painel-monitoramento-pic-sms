@@ -8,10 +8,10 @@ export async function PerfilInfanciaAsync() {
   if (!data) return <ApiErrorCard />;
 
   const faixas = [
-    { label: "< 1 ano",       count: data.faixa_0_1 },
-    { label: "1 a < 2 anos",  count: data.faixa_1_2 },
-    { label: "2 a < 4 anos",  count: data.faixa_2_4 },
-    { label: "4 a < 6 anos",  count: data.faixa_4_6 },
+    { label: "< 1 ano", count: data.faixa_0_1 },
+    { label: "1 a < 2 anos", count: data.faixa_1_2 },
+    { label: "2 a < 4 anos", count: data.faixa_2_4 },
+    { label: "4 a < 6 anos", count: data.faixa_4_6 },
   ];
   const total = faixas.reduce((s, f) => s + f.count, 0) || 1;
   const maxFaixa = Math.max(...faixas.map((f) => f.count), 1);
@@ -81,7 +81,7 @@ export async function PerfilInfanciaAsync() {
           <p className="text-xl font-bold text-red-500 tabular-nums">
             {data.sem_cpf_menores_6.toLocaleString("pt-BR")}
           </p>
-          <p className="text-[10px] text-red-400 mt-1">Fora da população-alvo</p>
+          <p className="text-[10px] text-red-400 mt-1">Potencial público alvo perdido</p>
         </div>
       </div>
 

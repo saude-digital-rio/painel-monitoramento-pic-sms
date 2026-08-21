@@ -60,20 +60,20 @@ export default async function PopulacaoPage() {
         </Suspense>
       </div>
 
-      {/* Movimentação da Infância | Qualidade do cadastro Vitacare */}
+      {/* Movimentação da Infância | Perfil da população infantil */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Suspense fallback={<CardSkeleton />}>
           <MovimentacaoInfanciaAsync />
         </Suspense>
         <Suspense fallback={<CardSkeleton />}>
-          <QualidadeCadastroAsync />
+          <PerfilInfanciaAsync />
         </Suspense>
       </div>
 
-      {/* Perfil da população infantil */}
+      {/* Qualidade do cadastro Vitacare */}
       <div className="mb-6">
         <Suspense fallback={<CardSkeleton />}>
-          <PerfilInfanciaAsync />
+          <QualidadeCadastroAsync />
         </Suspense>
       </div>
     </div>

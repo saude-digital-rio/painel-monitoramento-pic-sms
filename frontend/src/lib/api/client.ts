@@ -193,6 +193,10 @@ export interface MovimentacaoInfanciaAPI {
   entraram: number;
   sairam: number;
   saldo: number;
+  media_entradas_4_semanas: number;
+  media_saidas_4_semanas: number;
+  variacao_entradas: number | null;
+  variacao_saidas: number | null;
 }
 
 export interface CadastroQualidadeAPI {
