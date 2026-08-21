@@ -13,6 +13,7 @@ export async function PerfilInfanciaAsync() {
     { label: "2 a < 4 anos",  count: data.faixa_2_4 },
     { label: "4 a < 6 anos",  count: data.faixa_4_6 },
   ];
+  const total = faixas.reduce((s, f) => s + f.count, 0) || 1;
   const maxFaixa = Math.max(...faixas.map((f) => f.count), 1);
 
   return (
@@ -21,26 +22,28 @@ export async function PerfilInfanciaAsync() {
       tooltip="Composição do cadastro de crianças por faixa etária, próximas saídas por completar 6 anos, nascimentos recentes e crianças sem CPF que não entram na população-alvo."
     >
       {/* Distribuição etária */}
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
         Distribuição por faixa etária
       </p>
-      <div className="space-y-3 mb-5">
+      <div className="space-y-4 mb-5">
         {faixas.map(({ label, count }) => {
-          const pct = Math.round((count / maxFaixa) * 100);
+          const barPct = Math.round((count / maxFaixa) * 100);
+          const totalPct = ((count / total) * 100).toFixed(1);
           return (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-gray-600">{label}</span>
-                <span className="text-xs font-semibold text-gray-800 tabular-nums">
-                  {count.toLocaleString("pt-BR")}
-                </span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div key={label} className="flex items-center gap-4">
+              <span className="text-sm text-gray-700 w-24 shrink-0">{label}</span>
+              <div className="flex-1 h-3.5 rounded-full overflow-hidden" style={{ backgroundColor: "#dbeafe" }}>
                 <div
-                  className="h-full bg-blue-400 rounded-full"
-                  style={{ width: `${pct}%` }}
+                  className="h-full rounded-full"
+                  style={{ width: `${barPct}%`, backgroundColor: "#3b82f6" }}
                 />
               </div>
+              <span className="text-sm font-semibold text-gray-800 tabular-nums w-20 text-right shrink-0">
+                {count.toLocaleString("pt-BR")}
+              </span>
+              <span className="text-sm tabular-nums w-12 text-right shrink-0" style={{ color: "#3b82f6" }}>
+                {totalPct}%
+              </span>
             </div>
           );
         })}
