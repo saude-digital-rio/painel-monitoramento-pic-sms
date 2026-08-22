@@ -5,7 +5,7 @@ sem escanear os dados (metadata-only, muito barato).
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter
@@ -26,26 +26,23 @@ LIMITE_AVISO_HORAS = 24
 LIMITE_ALERTA_HORAS = 48
 LIMITE_CRITICO_HORAS = 72
 LIMITE_MENSAL_HORAS = 31 * 24  # 744h — backup mensal esperado
-VARIACAO_CRITICO_PCT = 10.0
 VARIACAO_ALTA_AVISO_PCT = 50.0
 
 
 def _severidade_freshness(horas: float, cadencia: str = "diaria") -> str:
     if cadencia == "mensal":
         return "ok" if horas < LIMITE_MENSAL_HORAS else "critico"
-    if horas < LIMITE_AVISO_HORAS:
+    if horas < LIMITE_AVISO_HORAS:   # < 24h
         return "ok"
-    if horas < LIMITE_ALERTA_HORAS:
-        return "aviso"
-    if horas < LIMITE_CRITICO_HORAS:
+    if horas < LIMITE_CRITICO_HORAS: # 24h–72h
         return "alerta"
     return "critico"
 
 
 def _severidade_volume(variacao_pct: float) -> str:
-    if variacao_pct < -VARIACAO_CRITICO_PCT:
+    if variacao_pct < -25:
         return "critico"
-    if variacao_pct < -5:
+    if variacao_pct < -15:
         return "alerta"
     if variacao_pct > VARIACAO_ALTA_AVISO_PCT:
         return "aviso"
@@ -185,6 +182,105 @@ def _buscar_cadastros_paciente(dataset: str, table_id: str) -> dict:
         return {}
 
 
+def _verificar_particoes(dataset: str, table_id: str) -> dict:
+    """
+    Detecta anomalias de partição: última partição válida (data <= hoje)
+    e partições com data futura (> hoje + 7 dias) que bloqueiam incrementais.
+    """
+    sql = f"""
+        SELECT
+            MAX(CASE
+                WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id) <= CURRENT_DATE()
+                THEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                ELSE NULL
+            END) AS ultima_particao_valida,
+            DATE_DIFF(
+                CURRENT_DATE(),
+                MAX(CASE
+                    WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id) <= CURRENT_DATE()
+                    THEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                    ELSE NULL
+                END),
+                DAY
+            ) AS dias_sem_nova_particao,
+            COUNTIF(
+                SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                    > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
+            ) AS particoes_futuras,
+            SUM(CASE
+                WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                    > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
+                THEN total_rows ELSE 0
+            END) AS registros_anomalos
+        FROM `{PROJECT}.{dataset}.INFORMATION_SCHEMA.PARTITIONS`
+        WHERE table_name = '{table_id}'
+          AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
+    """
+    try:
+        rows = executar_query(
+            sql,
+            cache_key=f"particoes_{dataset}_{table_id}",
+            ttl=settings.CACHE_TTL_METADATA,
+        )
+        if not rows:
+            return {}
+        r = rows[0]
+        ultima = r.get("ultima_particao_valida")
+        futuras = int(r.get("particoes_futuras") or 0)
+        anomalos = int(r.get("registros_anomalos") or 0)
+        dias_raw = r.get("dias_sem_nova_particao")
+        dias = int(dias_raw) if dias_raw is not None and ultima is not None else None
+        return {
+            "ultima_particao_valida": ultima.isoformat() if ultima else None,
+            "dias_sem_nova_particao": dias,
+            "particoes_futuras": futuras,
+            "registros_anomalos": anomalos,
+        }
+    except Exception:
+        return {}
+
+
+def _severidade_particao(dias: int | None, particoes_futuras: int) -> str:
+    if particoes_futuras > 0:
+        return "critico"
+    if dias is None or dias <= 1:  # ok até 1 dia (equivalente a < 24h para partição diária)
+        return "ok"
+    if dias <= 3:                  # alerta 2–3 dias (equivalente a 24–72h)
+        return "alerta"
+    return "critico"
+
+
+def _buscar_dado_carregado(dataset: str, table_id: str, campo_loaded_at: str, campo_data_evento: str) -> dict:
+    """
+    Para fontes onde o campo de partição é a data do evento (não a data de ingestão):
+    retorna o último loaded_at (ingestão real) e a data mais recente do evento,
+    excluindo partições futuras.
+    Faz scan de dados — usar TTL_SEGUNDOS.
+    """
+    sql = f"""
+        SELECT
+            MAX({campo_loaded_at}) AS ultimo_dado_carregado,
+            MAX({campo_data_evento}) AS ultima_data_atendimento
+        FROM `{PROJECT}.{dataset}.{table_id}`
+        WHERE {campo_data_evento} <= CURRENT_DATE('America/Sao_Paulo')
+    """
+    try:
+        rows = executar_query(
+            sql,
+            cache_key=f"dado_carregado_{dataset}_{table_id}",
+            ttl=settings.CACHE_TTL_SEGUNDOS,
+        )
+        if not rows:
+            return {}
+        r = rows[0]
+        return {
+            "ultimo_dado_carregado": r.get("ultimo_dado_carregado"),
+            "ultima_data_atendimento": r.get("ultima_data_atendimento"),
+        }
+    except Exception:
+        return {}
+
+
 def _buscar_volume_por_origem(dataset: str, table_id: str) -> dict[str, int] | None:
     """
     Para tabelas consolidadas: retorna volume por valor do campo `origem`.
@@ -223,9 +319,19 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
             "volume": None,
             "volume_atual_7d": None,
             "variacao_pct": None,
-            "media_7d": None,
+            "media_4_semanas": None,
             "volume_por_origem": None,
             "horas_sem_atualizacao": None,
+            "ultima_particao_valida": None,
+            "dias_sem_nova_particao": None,
+            "particoes_futuras": None,
+            "registros_anomalos": None,
+            "severidade_particao": None,
+            "ultimo_dado_carregado": None,
+            "horas_sem_dado_carregado": None,
+            "ultima_data_atendimento": None,
+            "label_data_evento": None,
+            "severidade_ingestao": None,
             "severidade": "alerta",
             "erro": "Tabela não encontrada",
         }
@@ -242,40 +348,89 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
 
     extra: dict = {}
 
+    # Variáveis de partição e ingestão — preenchidas apenas no branch padrão
+    ultima_particao_valida = None
+    dias_sem_nova_particao = None
+    particoes_futuras = None
+    registros_anomalos = None
+    severidade_particao = None
+    ultimo_dado_carregado = None
+    horas_sem_dado_carregado = None
+    ultima_data_atendimento = None
+    label_data_evento = None
+    severidade_ingestao = None
+
     if tipo == "consolidada":
-        # Tabela consolidada: severidade só pelo freshness, volume por origem via query.
         volume_atual_7d = None
-        media_7d = None
+        media_4_semanas = None
         variacao_pct = None
         volume_por_origem = _buscar_volume_por_origem(cfg["dataset"], cfg["table_id"])
         severidade = sev_fresh
     elif tipo == "paciente":
-        # Tabela de pacientes: reconstruída diariamente, sem histórico de COUNT(*).
-        # Volume via __TABLES__; comparação por novos cadastros (data_cadastro_inicial).
         volume_atual_7d = None
-        media_7d = None
+        media_4_semanas = None
         variacao_pct = None
         volume_por_origem = None
         extra = _buscar_cadastros_paciente(cfg["dataset"], cfg["table_id"])
         sev_cad = extra.get("severidade_cadastros", "ok")
         severidade = _pior_severidade(sev_fresh, sev_cad)
     elif cadencia == "mensal":
-        # Backup mensal com substituição: não há carga anterior disponível para comparar.
         volume_atual_7d = None
-        media_7d = None
+        media_4_semanas = None
         variacao_pct = None
         volume_por_origem = None
         severidade = sev_fresh
     else:
-        volume_atual_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 7, 0)
-        media_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 14, 7)
+        # Volume: atual (d-6 a d0) vs média das 4 semanas anteriores
+        volume_atual_7d = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 6, 0)
+        volume_w1 = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 13, 7)
+        volume_w2 = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 20, 14)
+        volume_w3 = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 27, 21)
+        volume_w4 = _buscar_volume_particoes(cfg["dataset"], cfg["table_id"], 34, 28)
         variacao_pct = None
+        media_4_semanas = None
         volume_por_origem = None
-        volume_comparacao = volume_atual_7d if volume_atual_7d is not None else volume
-        if media_7d and media_7d > 0:
-            variacao_pct = round((volume_comparacao - media_7d) / media_7d * 100, 2)
+        semanas = [volume_w1, volume_w2, volume_w3, volume_w4]
+        if all(v is not None for v in semanas):
+            media_4_semanas = sum(semanas) / 4
+            if volume_atual_7d is not None and media_4_semanas > 0:
+                variacao_pct = round((volume_atual_7d - media_4_semanas) / media_4_semanas * 100, 2)
         sev_vol = "ok" if variacao_pct is None else _severidade_volume(variacao_pct)
-        severidade = _pior_severidade(sev_fresh, sev_vol)
+
+        # Partições: detecta datas futuras que bloqueiam incrementais
+        info_part = _verificar_particoes(cfg["dataset"], cfg["table_id"])
+        ultima_particao_valida = info_part.get("ultima_particao_valida")
+        dias_sem_nova_particao = info_part.get("dias_sem_nova_particao")
+        particoes_futuras = info_part.get("particoes_futuras", 0)
+        registros_anomalos = info_part.get("registros_anomalos")
+        sev_part = _severidade_particao(dias_sem_nova_particao, particoes_futuras)
+        severidade_particao = sev_part
+
+        # Ingestão real: para fontes onde partição ≠ data de carga (ex: teste_rapido)
+        campo_loaded_at = cfg.get("campo_loaded_at")
+        if campo_loaded_at:
+            campo_data_evento = cfg.get("campo_data_evento", campo_loaded_at)
+            label_data_evento = cfg.get("label_data_evento", "Último evento")
+            info_dado = _buscar_dado_carregado(
+                cfg["dataset"], cfg["table_id"], campo_loaded_at, campo_data_evento
+            )
+            dt_carregado = info_dado.get("ultimo_dado_carregado")
+            if dt_carregado:
+                if dt_carregado.tzinfo is None:
+                    dt_carregado = dt_carregado.replace(tzinfo=timezone.utc)
+                horas_sem_dado_carregado = round((agora - dt_carregado).total_seconds() / 3600, 1)
+                ultimo_dado_carregado = dt_carregado.isoformat()
+            data_atend = info_dado.get("ultima_data_atendimento")
+            ultima_data_atendimento = data_atend.isoformat() if data_atend else None
+            sev_ingestao = _severidade_freshness(horas_sem_dado_carregado or 999.0, cadencia)
+            severidade_ingestao = sev_ingestao
+        else:
+            sev_ingestao = "ok"
+
+        severidade = _pior_severidade(
+            _pior_severidade(_pior_severidade(sev_fresh, sev_vol), sev_part),
+            sev_ingestao,
+        )
 
     return {
         "nome": cfg["nome"],
@@ -288,9 +443,19 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "volume": volume,
         "volume_atual_7d": int(volume_atual_7d) if volume_atual_7d is not None else None,
         "variacao_pct": variacao_pct,
-        "media_7d": media_7d,
+        "media_4_semanas": round(media_4_semanas) if media_4_semanas is not None else None,
         "volume_por_origem": volume_por_origem,
         "horas_sem_atualizacao": round(horas, 1),
+        "ultima_particao_valida": ultima_particao_valida,
+        "dias_sem_nova_particao": dias_sem_nova_particao,
+        "particoes_futuras": particoes_futuras,
+        "registros_anomalos": registros_anomalos,
+        "severidade_particao": severidade_particao,
+        "ultimo_dado_carregado": ultimo_dado_carregado,
+        "horas_sem_dado_carregado": horas_sem_dado_carregado,
+        "ultima_data_atendimento": ultima_data_atendimento,
+        "label_data_evento": label_data_evento,
+        "severidade_ingestao": severidade_ingestao,
         "severidade": severidade,
         **extra,
     }
@@ -353,8 +518,18 @@ def get_status_fontes():
                     "ultima_atualizacao": None,
                     "volume": None,
                     "variacao_pct": None,
-                    "media_7d": None,
+                    "media_4_semanas": None,
                     "horas_sem_atualizacao": None,
+                    "ultima_particao_valida": None,
+                    "dias_sem_nova_particao": None,
+                    "particoes_futuras": None,
+                    "registros_anomalos": None,
+                    "severidade_particao": None,
+                    "ultimo_dado_carregado": None,
+                    "horas_sem_dado_carregado": None,
+                    "ultima_data_atendimento": None,
+                    "label_data_evento": None,
+                    "severidade_ingestao": None,
                     "severidade": "alerta",
                     "erro": "Erro ao consultar",
                 }
@@ -412,6 +587,7 @@ def _processar_modelo(cfg: dict) -> dict:
         "intervalo_horas": round(intervalo_horas, 1),
         "volume_atual": volume,
         "ultimo_dado": ultimo_dado_iso,
+        "label_ultimo_dado": cfg.get("label_ultimo_dado", "Último dado disponível"),
         "severidade": sev,
     }
 

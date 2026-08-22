@@ -27,7 +27,6 @@ function sevFreshness(horas: number | null, cadencia: string): Severidade {
   if (horas === null) return "alerta";
   if (cadencia === "mensal") return horas < 31 * 24 ? "ok" : "critico";
   if (horas < 24) return "ok";
-  if (horas < 48) return "aviso";
   if (horas < 72) return "alerta";
   return "critico";
 }
@@ -118,8 +117,7 @@ function LimitesFreshness({ cadencia }: { cadencia: string }) {
       <span className="text-xs text-gray-500">Limites</span>
       <div className="flex items-center gap-1">
         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">ok &lt; 24h</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium">aviso 24–48h</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">alerta 48–72h</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">alerta 24–72h</span>
         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">crítico &gt; 72h</span>
       </div>
     </div>
@@ -139,6 +137,15 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
   const paciente = fonte.tipo === "paciente";
   const semVolumeSev = mensal || consolidada;
   const sfresh = sevFreshness(horas, fonte.cadencia);
+  const sparticao: Severidade = (fonte.severidade_particao as Severidade) ?? "ok";
+  // Diagnóstico: exibe linha "Particionamento" sempre que o backend calculou uma severidade
+  const temInfoParticaoDiag = fonte.severidade_particao != null;
+  // Atualizações: exibe bloco de partição sempre que há uma partição válida (independente de severidade)
+  const temInfoParticaoAtu = fonte.ultima_particao_valida != null || (fonte.particoes_futuras ?? 0) > 0;
+  const temDadoCarregado = fonte.ultimo_dado_carregado !== null && fonte.ultimo_dado_carregado !== undefined;
+  const sevIngestao: Severidade = temDadoCarregado && fonte.horas_sem_dado_carregado != null
+    ? sevFreshness(fonte.horas_sem_dado_carregado, fonte.cadencia)
+    : "ok";
 
   // Para paciente: severidade dos cadastros vem do backend
   const scad: Severidade = (paciente && fonte.severidade_cadastros) ? fonte.severidade_cadastros : "ok";
@@ -151,7 +158,8 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
   } else if (semVolumeSev) {
     motivo = "atualizações";
   } else {
-    motivo = ORDEM[sfresh] >= ORDEM[svol] ? "atualizações" : "volume";
+    const piorAtualizacoes = [sfresh, sparticao, sevIngestao].reduce((a, b) => ORDEM[a] >= ORDEM[b] ? a : b);
+    motivo = ORDEM[piorAtualizacoes] >= ORDEM[svol] ? "atualizações" : "volume";
   }
 
   let valorVolumeDiag: string;
@@ -198,10 +206,32 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Diagnóstico</p>
             <div className="bg-gray-50 rounded-xl p-3 space-y-1">
               <LinhaDiagnostico
-                label="Atualizações"
+                label="Atualização da tabela"
                 valor={horas !== null ? `${horas.toFixed(1)}h sem atualização` : "Sem dados"}
                 sev={sfresh}
               />
+              {temDadoCarregado && (
+                <LinhaDiagnostico
+                  label="Carga de registros"
+                  valor={fonte.horas_sem_dado_carregado != null ? `${fonte.horas_sem_dado_carregado.toFixed(1)}h sem carga recente` : "Sem dados"}
+                  sev={sevIngestao}
+                />
+              )}
+              {temInfoParticaoDiag && (
+                <LinhaDiagnostico
+                  label="Particionamento"
+                  valor={
+                    fonte.particoes_futuras
+                      ? `${fonte.particoes_futuras} ${fonte.particoes_futuras === 1 ? "partição futura" : "partições futuras"}`
+                      : fonte.dias_sem_nova_particao === 0
+                        ? "atualizada hoje"
+                        : fonte.dias_sem_nova_particao != null
+                          ? `sem nova há ${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
+                          : "sem dados"
+                  }
+                  sev={sparticao}
+                />
+              )}
               <LinhaDiagnostico
                 label={paciente ? "Cadastros" : "Volume"}
                 valor={valorVolumeDiag}
@@ -218,8 +248,40 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Atualizações</p>
             <div className="bg-gray-50 rounded-xl p-3 space-y-0.5">
-              <LinhaInfo label="Última atualização" valor={fonte.ultima_atualizacao ? new Date(fonte.ultima_atualizacao).toLocaleString("pt-BR") : "—"} />
+              <LinhaInfo label="Última materialização da tabela" valor={fonte.ultima_atualizacao ? new Date(fonte.ultima_atualizacao).toLocaleString("pt-BR") : "—"} />
               <LinhaInfo label="Sem atualização há" valor={horas !== null ? `${horas.toFixed(1)}h` : "—"} />
+              {temDadoCarregado && (
+                <>
+                  <LinhaInfo
+                    label="Último registro carregado"
+                    valor={fonte.ultimo_dado_carregado ? new Date(fonte.ultimo_dado_carregado).toLocaleString("pt-BR") : "—"}
+                  />
+                  <LinhaInfo
+                    label="Sem carga recente há"
+                    valor={fonte.horas_sem_dado_carregado != null ? `${fonte.horas_sem_dado_carregado.toFixed(1)}h` : "—"}
+                  />
+                </>
+              )}
+              {temInfoParticaoAtu && (
+                <>
+                  <LinhaInfo
+                    label="Última partição válida"
+                    valor={fonte.ultima_particao_valida ? new Date(fonte.ultima_particao_valida + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                  />
+                  <LinhaInfo
+                    label="Sem nova partição há"
+                    valor={fonte.dias_sem_nova_particao !== null
+                      ? `${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
+                      : "—"}
+                  />
+                  {(fonte.particoes_futuras ?? 0) > 0 && (
+                    <>
+                      <LinhaInfo label={fonte.particoes_futuras === 1 ? "Partição futura" : "Partições futuras"} valor={String(fonte.particoes_futuras)} />
+                      <LinhaInfo label="Registros afetados" valor={fonte.registros_anomalos?.toLocaleString("pt-BR") ?? "—"} />
+                    </>
+                  )}
+                </>
+              )}
               <LinhaInfo label="Cadência esperada" valor={fonte.cadencia} />
               <LimitesFreshness cadencia={fonte.cadencia} />
             </div>
@@ -309,13 +371,13 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
               <div className="bg-gray-50 rounded-xl p-3 space-y-0.5">
                 {fonte.volume_atual_7d !== null && fonte.volume_atual_7d !== undefined ? (
                   <>
-                    <LinhaInfo label="Semana atual (d-7 a hoje)" valor={Math.round(fonte.volume_atual_7d).toLocaleString("pt-BR")} />
-                    <LinhaInfo label="Semana anterior (d-14 a d-7)" valor={fonte.media_7d !== null ? Math.round(fonte.media_7d).toLocaleString("pt-BR") : "—"} />
+                    <LinhaInfo label="Últimos 7 dias" valor={Math.round(fonte.volume_atual_7d).toLocaleString("pt-BR")} />
+                    <LinhaInfo label="Média das 4 semanas anteriores" valor={fonte.media_4_semanas !== null ? Math.round(fonte.media_4_semanas).toLocaleString("pt-BR") : "—"} />
                   </>
                 ) : (
                   <>
                     <LinhaInfo label="Volume total" valor={fonte.volume !== null ? fonte.volume.toLocaleString("pt-BR") : "—"} />
-                    <LinhaInfo label="Média 7 dias anteriores" valor={fonte.media_7d !== null ? Math.round(fonte.media_7d).toLocaleString("pt-BR") : "—"} />
+                    <LinhaInfo label="Média das 4 semanas anteriores" valor={fonte.media_4_semanas !== null ? Math.round(fonte.media_4_semanas).toLocaleString("pt-BR") : "—"} />
                   </>
                 )}
                 <LinhaInfo label="Variação" valor={fonte.variacao_pct !== null ? `${fonte.variacao_pct > 0 ? "+" : ""}${fonte.variacao_pct.toFixed(1)}%` : "—"} />

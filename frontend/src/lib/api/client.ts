@@ -48,7 +48,12 @@ export interface FonteStatusAPI {
   volume: number | null;
   volume_atual_7d: number | null;
   variacao_pct: number | null;
-  media_7d: number | null;
+  media_4_semanas: number | null;
+  ultima_particao_valida: string | null;
+  dias_sem_nova_particao: number | null;
+  particoes_futuras: number | null;
+  registros_anomalos: number | null;
+  severidade_particao: Severidade | null;
   volume_por_origem: Record<string, number> | null;
   horas_sem_atualizacao: number | null;
   severidade: "ok" | "aviso" | "alerta" | "critico";
@@ -58,12 +63,19 @@ export interface FonteStatusAPI {
   media_4_semanas?: number;
   variacao_cadastros?: number | null;
   severidade_cadastros?: "ok" | "aviso" | "alerta" | "critico";
+  // Campos exclusivos de fontes com ingestão separada do campo de partição (ex: teste_rapido)
+  ultimo_dado_carregado?: string | null;
+  horas_sem_dado_carregado?: number | null;
+  ultima_data_atendimento?: string | null;
+  label_data_evento?: string | null;
+  severidade_ingestao?: Severidade | null;
 }
 
 export interface ExecucaoModeloAPI {
   modelo: string;
   ultima_execucao: string | null;
   ultimo_dado: string | null;
+  label_ultimo_dado: string;
   intervalo_horas: number;
   volume_atual: number;
   severidade: "ok" | "aviso" | "alerta" | "critico";

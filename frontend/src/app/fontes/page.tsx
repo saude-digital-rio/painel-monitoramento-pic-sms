@@ -52,7 +52,7 @@ export default function FontesPage() {
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Último dado disponível</p>
+                  <p className="text-xs text-gray-500">{m.label_ultimo_dado}</p>
                   <p className="font-semibold text-gray-800 mt-0.5">
                     {m.ultimo_dado ? new Date(m.ultimo_dado).toLocaleDateString("pt-BR") : "—"}
                   </p>

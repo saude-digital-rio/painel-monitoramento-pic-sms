@@ -20,7 +20,7 @@ export interface FonteStatus {
   volume: number;
   volume_atual_7d?: number | null;
   variacao_pct: number;
-  media_7d: number;
+  media_4_semanas: number;
   severidade: Severidade;
   horas_sem_atualizacao: number;
 }

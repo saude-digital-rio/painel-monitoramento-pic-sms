@@ -140,6 +140,9 @@ FONTE_CONFIGS = [
         "dataset": "brutos_prontuario_vitacare_api",
         "table_id": "teste_rapido",
         "cadencia": "diaria",
+        "campo_loaded_at": "loaded_at",
+        "campo_data_evento": "data_particao",
+        "label_data_evento": "Última data de atendimento",
     },
     {
         "nome": "Vitacare API - Acto (ponte)",
@@ -204,5 +207,6 @@ MODEL_CONFIGS = [
             FROM `{PROJECT}.projeto_rmi.paciente` p
             LEFT JOIN UNNEST(p.endereco) AS e
         """,
+        "label_ultimo_dado": "Última atualização de endereço",
     },
 ]

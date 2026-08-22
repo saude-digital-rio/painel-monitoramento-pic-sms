@@ -13,16 +13,15 @@ from app.services.bigquery import PROJECT, executar_query
 router = APIRouter(prefix="/unidades", tags=["Unidades"])
 logger = logging.getLogger(__name__)
 
-LIMITE_QUEDA_CRITICO = 30.0  # > 30% de queda
 LIMITE_AUSENCIA_AVISO = 24
 LIMITE_AUSENCIA_ALERTA = 48
 LIMITE_AUSENCIA_CRITICO = 72
 
 
 def _severidade_unidade(variacao_pct: float, horas_sem_evento: float) -> str:
-    if horas_sem_evento >= LIMITE_AUSENCIA_CRITICO or variacao_pct <= -LIMITE_QUEDA_CRITICO:
+    if horas_sem_evento >= LIMITE_AUSENCIA_CRITICO or variacao_pct <= -25:
         return "critico"
-    if horas_sem_evento >= LIMITE_AUSENCIA_ALERTA:
+    if horas_sem_evento >= LIMITE_AUSENCIA_ALERTA or variacao_pct <= -15:
         return "alerta"
     if horas_sem_evento >= LIMITE_AUSENCIA_AVISO:
         return "aviso"
@@ -57,21 +56,27 @@ def get_unidades():
               )
         ),
         eventos_7d AS (
+            -- Atual: d-6 até hoje (7 datas exatas)
             SELECT
                 cnes_unidade,
                 COUNT(*) AS eventos_7d,
                 MAX(data_atendimento) AS ultima_data
             FROM atendimentos_pic
-            WHERE data_atendimento >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+            WHERE data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) AND CURRENT_DATE()
             GROUP BY cnes_unidade
         ),
         eventos_hist AS (
+            -- Média de 4 janelas semanais anteriores sem sobreposição
             SELECT
                 cnes_unidade,
-                COUNT(*) / 4.0 AS media_semanal
+                (
+                    COUNTIF(data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 13 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY))
+                  + COUNTIF(data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY))
+                  + COUNTIF(data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 27 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 21 DAY))
+                  + COUNTIF(data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 34 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY))
+                ) / 4.0 AS media_semanal
             FROM atendimentos_pic
-            WHERE data_atendimento >= DATE_SUB(CURRENT_DATE(), INTERVAL 28 DAY)
-              AND data_atendimento < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+            WHERE data_atendimento BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 34 DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
             GROUP BY cnes_unidade
         ),
         base AS (
