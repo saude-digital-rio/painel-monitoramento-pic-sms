@@ -1,0 +1,157 @@
+name: Deploy (Production)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: rj-sms
+  BACKEND_SERVICE_NAME: painel-monitoramento-pic-api
+  FRONTEND_SERVICE_NAME: painel-monitoramento-pic-frontend
+  REGION: us-central1
+  BACKEND_IMAGE_NAME: us-central1-docker.pkg.dev/rj-sms/painel-monitoramento-pic/api
+  FRONTEND_IMAGE_NAME: us-central1-docker.pkg.dev/rj-sms/painel-monitoramento-pic/frontend
+  ENV: production
+  VERSION_COMMIT: ${{ github.event.head_commit.id }}
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Autenticação via Service Account (json)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Configura Docker para o Artifact Registry regional
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      # ========================================
+      # BACKEND
+      # ========================================
+
+      - name: Build Backend Docker image
+        run: |
+          docker build \
+            -t $BACKEND_IMAGE_NAME:$GITHUB_SHA \
+            -t $BACKEND_IMAGE_NAME:latest \
+            -f backend/Dockerfile \
+            backend/
+
+      - name: Push Backend Docker image
+        run: |
+          docker push $BACKEND_IMAGE_NAME:$GITHUB_SHA
+          docker push $BACKEND_IMAGE_NAME:latest
+
+      - name: Deploy Backend to Cloud Run
+        run: |
+          gcloud run deploy $BACKEND_SERVICE_NAME \
+            --image $BACKEND_IMAGE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --cpu 2 \
+            --timeout 300 \
+            --max-instances 10 \
+            --port 8000 \
+            --cpu-boost \
+            --service-account painel-monitoramento-pic@rj-sms.iam.gserviceaccount.com \
+            --add-cloudsql-instances rj-sms:us-central1:postgres \
+            --set-env-vars "ENV=$ENV,VERSION_COMMIT=$VERSION_COMMIT,DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},ALGORITHM=${{ secrets.ALGORITHM }},ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GCS_PROJECT_ID=$PROJECT_ID,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},BIGQUERY_PROJECT_ID=$PROJECT_ID"
+
+      # Captura a URL do backend para usar no frontend
+      - name: Get Backend URL
+        id: backend_url
+        run: |
+          BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE_NAME --region $REGION --format 'value(status.url)')
+          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
+
+      # Valida que o backend está respondendo
+      - name: Backend Health Check
+        run: |
+          echo "Verificando saúde do backend em ${{ steps.backend_url.outputs.url }}/health"
+          for i in {1..10}; do
+            if curl -f -s ${{ steps.backend_url.outputs.url }}/health > /dev/null; then
+              echo "✅ Backend está saudável!"
+              exit 0
+            fi
+            echo "Tentativa $i/10 falhou, aguardando 5s..."
+            sleep 5
+          done
+          echo "❌ Backend não respondeu após 10 tentativas"
+          exit 1
+
+      # ========================================
+      # FRONTEND
+      # ========================================
+
+      - name: Build Frontend Docker image
+        run: |
+          docker build \
+            -t $FRONTEND_IMAGE_NAME:$GITHUB_SHA \
+            -t $FRONTEND_IMAGE_NAME:latest \
+            --build-arg NEXT_PUBLIC_API_URL=${{ steps.backend_url.outputs.url }} \
+            --build-arg NEXT_PUBLIC_EMAIL_SUPORTE=${{ secrets.EMAIL_SUPORTE }} \
+            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            -f frontend/Dockerfile \
+            frontend/
+
+      - name: Push Frontend Docker image
+        run: |
+          docker push $FRONTEND_IMAGE_NAME:$GITHUB_SHA
+          docker push $FRONTEND_IMAGE_NAME:latest
+
+      - name: Deploy Frontend to Cloud Run
+        run: |
+          gcloud run deploy $FRONTEND_SERVICE_NAME \
+            --image $FRONTEND_IMAGE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --cpu 1 \
+            --timeout 300 \
+            --max-instances 10 \
+            --port 3000 \
+            --service-account painel-monitoramento-pic@rj-sms.iam.gserviceaccount.com \
+            --set-env-vars "NEXT_PUBLIC_API_URL=${{ steps.backend_url.outputs.url }},NEXT_PUBLIC_EMAIL_SUPORTE=${{ secrets.EMAIL_SUPORTE }},NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+
+      # Captura a URL do frontend
+      - name: Get Frontend URL
+        id: frontend_url
+        run: |
+          FRONTEND_URL=$(gcloud run services describe $FRONTEND_SERVICE_NAME --region $REGION --format 'value(status.url)')
+          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+
+      # Valida que o frontend está respondendo
+      - name: Frontend Health Check
+        run: |
+          echo "Verificando saúde do frontend em ${{ steps.frontend_url.outputs.url }}"
+          for i in {1..10}; do
+            if curl -f -s -o /dev/null -w "%{http_code}" ${{ steps.frontend_url.outputs.url }} | grep -q "200"; then
+              echo "✅ Frontend está saudável!"
+              echo "📍 Frontend URL: ${{ steps.frontend_url.outputs.url }}"
+              echo "📍 Backend URL: ${{ steps.backend_url.outputs.url }}"
+              exit 0
+            fi
+            echo "Tentativa $i/10 falhou, aguardando 5s..."
+            sleep 5
+          done
+          echo "❌ Frontend não respondeu após 10 tentativas"
+          exit 1
