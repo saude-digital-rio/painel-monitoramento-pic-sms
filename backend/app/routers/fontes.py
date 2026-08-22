@@ -182,34 +182,44 @@ def _buscar_cadastros_paciente(dataset: str, table_id: str) -> dict:
         return {}
 
 
-def _verificar_particoes(dataset: str, table_id: str) -> dict:
+def _verificar_particoes(dataset: str, table_id: str, granularidade: str = "day") -> dict:
     """
-    Detecta anomalias de partição: última partição válida (data <= hoje)
-    e partições com data futura (> hoje + 7 dias) que bloqueiam incrementais.
+    Detecta anomalias de partição: última partição válida e dias/meses sem nova partição.
+    granularidade: "day" (padrão, partition_id = YYYYMMDD) ou "month" (partition_id = YYYYMM).
+    Usa agregação pura sem GROUP BY — sempre retorna exatamente 1 linha.
     """
+    if granularidade == "month":
+        parse_fn = "SAFE.PARSE_DATE('%Y%m%d', CONCAT(partition_id, '01'))"
+        current_period = "DATE_TRUNC(CURRENT_DATE(), MONTH)"
+        diff_unit = "MONTH"
+        diff_alias = "meses_sem_nova_particao"
+    else:
+        parse_fn = "SAFE.PARSE_DATE('%Y%m%d', partition_id)"
+        current_period = "CURRENT_DATE()"
+        diff_unit = "DAY"
+        diff_alias = "dias_sem_nova_particao"
+
     sql = f"""
         SELECT
             MAX(CASE
-                WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id) <= CURRENT_DATE()
-                THEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                WHEN {parse_fn} <= {current_period}
+                THEN {parse_fn}
                 ELSE NULL
             END) AS ultima_particao_valida,
             DATE_DIFF(
-                CURRENT_DATE(),
+                {current_period},
                 MAX(CASE
-                    WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id) <= CURRENT_DATE()
-                    THEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
+                    WHEN {parse_fn} <= {current_period}
+                    THEN {parse_fn}
                     ELSE NULL
                 END),
-                DAY
-            ) AS dias_sem_nova_particao,
+                {diff_unit}
+            ) AS {diff_alias},
             COUNTIF(
-                SAFE.PARSE_DATE('%Y%m%d', partition_id)
-                    > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
+                {parse_fn} > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
             ) AS particoes_futuras,
             SUM(CASE
-                WHEN SAFE.PARSE_DATE('%Y%m%d', partition_id)
-                    > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
+                WHEN {parse_fn} > DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY)
                 THEN total_rows ELSE 0
             END) AS registros_anomalos
         FROM `{PROJECT}.{dataset}.INFORMATION_SCHEMA.PARTITIONS`
@@ -228,11 +238,22 @@ def _verificar_particoes(dataset: str, table_id: str) -> dict:
         ultima = r.get("ultima_particao_valida")
         futuras = int(r.get("particoes_futuras") or 0)
         anomalos = int(r.get("registros_anomalos") or 0)
+        if granularidade == "month":
+            meses_raw = r.get("meses_sem_nova_particao")
+            meses = int(meses_raw) if meses_raw is not None and ultima is not None else None
+            return {
+                "ultima_particao_valida": ultima.isoformat() if ultima else None,
+                "dias_sem_nova_particao": None,
+                "meses_sem_nova_particao": meses,
+                "particoes_futuras": futuras,
+                "registros_anomalos": anomalos,
+            }
         dias_raw = r.get("dias_sem_nova_particao")
         dias = int(dias_raw) if dias_raw is not None and ultima is not None else None
         return {
             "ultima_particao_valida": ultima.isoformat() if ultima else None,
             "dias_sem_nova_particao": dias,
+            "meses_sem_nova_particao": None,
             "particoes_futuras": futuras,
             "registros_anomalos": anomalos,
         }
@@ -246,6 +267,14 @@ def _severidade_particao(dias: int | None, particoes_futuras: int) -> str:
     if dias is None or dias <= 1:  # ok até 1 dia (equivalente a < 24h para partição diária)
         return "ok"
     if dias <= 3:                  # alerta 2–3 dias (equivalente a 24–72h)
+        return "alerta"
+    return "critico"
+
+
+def _severidade_particao_mensal(meses: int | None) -> str:
+    if meses is None or meses == 0:
+        return "ok"
+    if meses == 1:
         return "alerta"
     return "critico"
 
@@ -324,6 +353,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
             "horas_sem_atualizacao": None,
             "ultima_particao_valida": None,
             "dias_sem_nova_particao": None,
+            "meses_sem_nova_particao": None,
             "particoes_futuras": None,
             "registros_anomalos": None,
             "severidade_particao": None,
@@ -351,6 +381,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
     # Variáveis de partição e ingestão — preenchidas apenas no branch padrão
     ultima_particao_valida = None
     dias_sem_nova_particao = None
+    meses_sem_nova_particao = None
     particoes_futuras = None
     registros_anomalos = None
     severidade_particao = None
@@ -398,12 +429,17 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         sev_vol = "ok" if variacao_pct is None else _severidade_volume(variacao_pct)
 
         # Partições: detecta datas futuras que bloqueiam incrementais
-        info_part = _verificar_particoes(cfg["dataset"], cfg["table_id"])
+        particao_gran = cfg.get("particao_granularidade", "day")
+        info_part = _verificar_particoes(cfg["dataset"], cfg["table_id"], particao_gran)
         ultima_particao_valida = info_part.get("ultima_particao_valida")
         dias_sem_nova_particao = info_part.get("dias_sem_nova_particao")
+        meses_sem_nova_particao = info_part.get("meses_sem_nova_particao")
         particoes_futuras = info_part.get("particoes_futuras", 0)
         registros_anomalos = info_part.get("registros_anomalos")
-        sev_part = _severidade_particao(dias_sem_nova_particao, particoes_futuras)
+        if particao_gran == "month":
+            sev_part = _severidade_particao_mensal(meses_sem_nova_particao)
+        else:
+            sev_part = _severidade_particao(dias_sem_nova_particao, particoes_futuras)
         severidade_particao = sev_part
 
         # Ingestão real: para fontes onde partição ≠ data de carga (ex: teste_rapido)
@@ -448,6 +484,7 @@ def _processar_fonte(cfg: dict, agora: datetime) -> dict:
         "horas_sem_atualizacao": round(horas, 1),
         "ultima_particao_valida": ultima_particao_valida,
         "dias_sem_nova_particao": dias_sem_nova_particao,
+        "meses_sem_nova_particao": meses_sem_nova_particao,
         "particoes_futuras": particoes_futuras,
         "registros_anomalos": registros_anomalos,
         "severidade_particao": severidade_particao,
@@ -522,6 +559,7 @@ def get_status_fontes():
                     "horas_sem_atualizacao": None,
                     "ultima_particao_valida": None,
                     "dias_sem_nova_particao": None,
+                    "meses_sem_nova_particao": None,
                     "particoes_futuras": None,
                     "registros_anomalos": None,
                     "severidade_particao": None,

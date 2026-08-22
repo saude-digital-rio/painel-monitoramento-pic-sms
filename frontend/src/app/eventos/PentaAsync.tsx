@@ -4,10 +4,7 @@ import { api } from "@/lib/api/client";
 import { AlertTriangle } from "lucide-react";
 
 export async function PentaAsync() {
-  const [pentaReal, coberturaReal] = await Promise.all([
-    api.vacinacao.pentavalente(),
-    api.vacinacao.coberturaDois(),
-  ]);
+  const pentaReal = await api.vacinacao.pentavalente();
 
   return (
     <Card title="Sequência da pentavalente D1→D2→D3" tooltip="Verifica se crianças com D3 registrada também possuem D1 e D2, e se o intervalo entre doses está dentro do esperado (28–90 dias).">
@@ -47,11 +44,11 @@ export async function PentaAsync() {
             <p className="text-sm font-semibold text-gray-700 mb-2">Intervalo D2→D3</p>
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="text-center p-2 bg-green-50 rounded-lg border border-green-100">
-                <p className="text-xs text-green-600">OK (28–90 dias)</p>
+                <p className="text-xs text-green-600">OK (30–90 dias)</p>
                 <p className="font-bold text-green-800">{pentaReal.intervalo_d2_d3_ok.toLocaleString("pt-BR")}</p>
               </div>
               <div className="text-center p-2 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-xs text-red-600">{"< 28 dias"}</p>
+                <p className="text-xs text-red-600">{"< 30 dias"}</p>
                 <p className="font-bold text-red-800">{pentaReal.intervalo_d2_d3_menor_28d}</p>
               </div>
               <div className="text-center p-2 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -61,26 +58,6 @@ export async function PentaAsync() {
             </div>
           </div>
 
-          {pentaReal.nomes_nao_mapeados.length > 0 && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Nomes não mapeados pelo filtro</p>
-              <div className="flex flex-wrap gap-1">
-                {pentaReal.nomes_nao_mapeados.map((n) => (
-                  <span key={n} className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full border border-orange-200">{n}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {coberturaReal && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Cobertura de D3 entre crianças da população-alvo</p>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Crianças alvo: {coberturaReal.criancas_alvo.toLocaleString("pt-BR")}</span>
-                <span className="font-bold text-gray-800">{coberturaReal.cobertura_pct}% com D3</span>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <ApiErrorCard />

@@ -5,7 +5,7 @@ Unidades de saúde — análise por CNES.
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 
 from app.config import settings
 from app.services.bigquery import PROJECT, executar_query
@@ -101,7 +101,6 @@ def get_unidades():
         LEFT JOIN `{PROJECT}.saude_dados_mestres.estabelecimento` e
             ON b.cnes = e.id_cnes
         ORDER BY b.eventos_7d ASC
-        LIMIT 200
     """
     rows = executar_query(sql, cache_key="unidades_lista", ttl=settings.CACHE_TTL_SEGUNDOS)
 
@@ -142,3 +141,37 @@ def get_unidades():
         )
 
     return resultado
+
+
+@router.get("/{cnes}/serie")
+def get_serie_unidade(cnes: str = Path(..., description="CNES da unidade")):
+    """Série semanal de eventos da população-alvo para uma unidade específica (últimas 12 semanas)."""
+    sql = f"""
+        WITH publico AS (
+            SELECT DISTINCT cpf
+            FROM `{PROJECT}.projeto_pic.publico_alvo`
+        ),
+        semanas AS (
+            SELECT
+                DATE_TRUNC(DATE(a.datahora_inicio), WEEK(MONDAY)) AS semana,
+                COUNT(*) AS eventos
+            FROM `{PROJECT}.brutos_prontuario_vitacare.atendimento` a
+            WHERE a.cnes_unidade = '{cnes}'
+              AND a.cpf IS NOT NULL
+              AND a.cpf IN (SELECT cpf FROM publico)
+              AND DATE(a.datahora_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL 12 WEEK)
+              AND (
+                REGEXP_CONTAINS(a.tipo_consulta, r'(?i)visita')
+                OR REGEXP_CONTAINS(
+                    REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(a.cbo_descricao_profissional, NFKD), r'\pM', ''),
+                    r'medico|enfermeiro'
+                )
+              )
+            GROUP BY semana
+        )
+        SELECT semana, eventos
+        FROM semanas
+        ORDER BY semana
+    """
+    rows = executar_query(sql, cache_key=f"unidade_serie_{cnes}", ttl=settings.CACHE_TTL_SEGUNDOS)
+    return [{"semana": str(r["semana"]), "eventos": int(r["eventos"])} for r in rows]

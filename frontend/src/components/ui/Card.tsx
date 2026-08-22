@@ -17,6 +17,7 @@ function InfoTooltip({ text }: { text: string }) {
 }
 
 interface CardProps {
+  contentClassName?: string;
   title?: string;
   subtitle?: string;
   tooltip?: string;
@@ -25,7 +26,7 @@ interface CardProps {
   padding?: boolean;
 }
 
-export function Card({ title, subtitle, tooltip, children, className = "", padding = true }: CardProps) {
+export function Card({ title, subtitle, tooltip, children, className = "", padding = true, contentClassName = "" }: CardProps) {
   return (
     <div className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`}>
       {(title || subtitle) && (
@@ -39,7 +40,7 @@ export function Card({ title, subtitle, tooltip, children, className = "", paddi
           {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       )}
-      <div className={padding ? "p-5" : ""}>{children}</div>
+      <div className={`${padding ? "p-5" : ""} ${contentClassName}`}>{children}</div>
     </div>
   );
 }

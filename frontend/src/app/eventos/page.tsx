@@ -6,7 +6,10 @@ import { MultiLineChart } from "@/components/charts/LineChart";
 import { api } from "@/lib/api/client";
 import { Activity } from "lucide-react";
 import { CoberturaAsync } from "./CoberturaAsync";
+import { CoberturaGestantesAsync } from "./CoberturaGestantesAsync";
 import { DetalheAsync } from "./DetalheAsync";
+import { PentaAsync } from "./PentaAsync";
+import { VacinacaoD3Card } from "./VacinacaoD3Card";
 
 const TIPO_COLORS: Record<string, string> = {
   consulta: "#3b82f6",
@@ -137,6 +140,43 @@ export default async function EventosPage() {
       }>
         <CoberturaAsync />
       </Suspense>
+
+      {/* Rastreamento IST em gestantes */}
+      <Suspense fallback={
+        <div className="mb-6 space-y-4">
+          {[0, 1].map((i) => (
+            <div key={i} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[0, 1].map((j) => (
+                <div key={j} className="rounded-2xl border border-gray-100 bg-white p-5">
+                  <div className="h-4 w-48 bg-gray-100 rounded animate-pulse mb-4" />
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, k) => <div key={k} className="h-8 bg-gray-50 rounded-lg border border-gray-100 animate-pulse" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      }>
+        <CoberturaGestantesAsync />
+      </Suspense>
+
+      {/* Vacinação — Pentavalente D3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+        <VacinacaoD3Card />
+
+        <Suspense fallback={
+          <div className="rounded-2xl border border-gray-100 bg-white p-5">
+            <div className="h-4 w-64 bg-gray-100 rounded animate-pulse mb-4" />
+            <div className="space-y-3">
+              <div className="h-28 bg-blue-50 rounded-xl animate-pulse" />
+              {[0, 1, 2].map((i) => <div key={i} className="h-14 bg-gray-50 rounded-lg border border-gray-100 animate-pulse" />)}
+            </div>
+          </div>
+        }>
+          <PentaAsync />
+        </Suspense>
+      </div>
 
       {/* Consistência, completude e compatibilidade */}
       <Suspense fallback={

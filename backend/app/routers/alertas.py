@@ -15,7 +15,8 @@ from fastapi import APIRouter
 from app.config import settings
 from app.services.bigquery import PROJECT, executar_query
 from app.routers.fontes import get_status_fontes, get_execucoes_modelos
-from app.routers.eventos import get_consistencia_datas
+from app.routers.eventos import get_consistencia_datas, get_cobertura_gestantes
+from app.routers.unidades import get_unidades
 
 router = APIRouter(prefix="/alertas", tags=["Alertas"])
 logger = logging.getLogger(__name__)
@@ -135,7 +136,7 @@ def _check_penta() -> list[dict]:
             GROUP BY paciente_cpf, vacina_dose
         )
         SELECT
-            COUNTIF(DATE_DIFF(d3.data_dose, d2.data_dose, DAY) < 28) AS intervalo_curto,
+            COUNTIF(DATE_DIFF(d3.data_dose, d2.data_dose, DAY) < 30) AS intervalo_curto,
             COUNTIF(DATE_DIFF(d3.data_dose, d2.data_dose, DAY) > 90) AS intervalo_longo
         FROM doses d3
         JOIN doses d2 USING (paciente_cpf)
@@ -148,7 +149,7 @@ def _check_penta() -> list[dict]:
         return [{
             "id": "PENTA_INTERVALO",
             "categoria": "Pentavalente",
-            "descricao": f"{curto} crianças com intervalo D2→D3 < 28 dias; {longo} com > 90 dias",
+            "descricao": f"{curto} crianças com intervalo D2→D3 < 30 dias; {longo} com > 90 dias",
             "severidade": "alerta",
             "data": _agora_iso(),
             "tabela": "mart_cit__vacinacao",
@@ -159,12 +160,90 @@ def _check_penta() -> list[dict]:
     return []
 
 
+def _check_unidades() -> list[dict]:
+    """Agrega unidades críticas e em alerta em dois alertas de resumo."""
+    try:
+        unidades = get_unidades()
+    except Exception:
+        logger.exception("Erro ao buscar unidades para alertas")
+        return []
+
+    criticas = [u for u in unidades if u["severidade"] == "critico"]
+    em_alerta = [u for u in unidades if u["severidade"] == "alerta"]
+    alertas = []
+
+    if criticas:
+        alertas.append({
+            "id": "UNIDADES_CRITICAS",
+            "categoria": "Unidades de Saúde",
+            "descricao": (
+                f"{len(criticas)} unidade{'s' if len(criticas) > 1 else ''} com queda crítica de eventos "
+                f"(>{25}%) ou ausência prolongada (>72h): "
+                + ", ".join(u["nome"] for u in criticas[:5])
+                + (f" e outras {len(criticas) - 5}" if len(criticas) > 5 else "")
+            ),
+            "severidade": "critico",
+            "data": _agora_iso(),
+            "tabela": "brutos_prontuario_vitacare.atendimento",
+            "investigado": False,
+            "esperado": False,
+        })
+    if em_alerta:
+        alertas.append({
+            "id": "UNIDADES_ALERTA",
+            "categoria": "Unidades de Saúde",
+            "descricao": (
+                f"{len(em_alerta)} unidade{'s' if len(em_alerta) > 1 else ''} com queda moderada de eventos "
+                f"(>{15}%) ou ausência (>48h)"
+            ),
+            "severidade": "alerta",
+            "data": _agora_iso(),
+            "tabela": "brutos_prontuario_vitacare.atendimento",
+            "investigado": False,
+            "esperado": False,
+        })
+    return alertas
+
+
+def _check_cobertura_ist() -> list[dict]:
+    """Alerta quando a cobertura de rastreamento IST em gestantes está abaixo de 50%."""
+    LIMITE_PCT = 50.0
+    try:
+        data = get_cobertura_gestantes()
+    except Exception:
+        logger.exception("Erro ao buscar cobertura IST para alertas")
+        return []
+
+    condicoes = data.get("evidencia_por_condicao", [])
+    baixas = [c for c in condicoes if c["pct"] < LIMITE_PCT]
+    if not baixas:
+        return []
+
+    detalhes = "; ".join(
+        f"{c['condicao']}: {c['pct']}% ({c['com_evidencia']} de {data['total_gestantes']} gestantes)"
+        for c in baixas
+    )
+    return [{
+        "id": "IST_COBERTURA_BAIXA",
+        "categoria": "Rastreamento IST",
+        "descricao": f"Cobertura abaixo de {LIMITE_PCT:.0f}% em {len(baixas)} condição{'ões' if len(baixas) > 1 else ''}: {detalhes}",
+        "severidade": "alerta",
+        "data": _agora_iso(),
+        "tabela": "mart_iplanrio_pic__eventos",
+        "segmento": "Gestacao",
+        "investigado": False,
+        "esperado": False,
+    }]
+
+
 _CHECKS: list[Callable[[], list[dict]]] = [
     _check_fontes,
     _check_modelos,
     _check_datas,
     _check_overlap,
     _check_penta,
+    _check_unidades,
+    _check_cobertura_ist,
 ]
 
 

@@ -164,6 +164,137 @@ def get_evento_segmento():
     ]
 
 
+@router.get("/cobertura-gestantes")
+def get_cobertura_gestantes():
+    """Cobertura das 4 condições IST entre gestantes via evidência (teste + diagnóstico)."""
+    sql = f"""
+        WITH gestantes AS (
+            SELECT DISTINCT cpf
+            FROM `{PROJECT}.projeto_pic.publico_alvo`
+            WHERE tipo_publico = 'Gestacao'
+        ),
+        evidencias AS (
+            SELECT DISTINCT cpf, tipo_evento
+            FROM `{PROJECT}.projeto_pic.eventos`
+            WHERE tipo_publico = 'Gestacao'
+              AND tipo_evento IN (
+                  'Teste rápido - HIV',        'Diagnóstico - HIV',
+                  'Teste rápido - Sífilis',    'Diagnóstico - Sífilis',
+                  'Teste rápido - Hepatite B', 'Diagnóstico - Hepatite B',
+                  'Teste rápido - Hepatite C', 'Diagnóstico - Hepatite C'
+              )
+        ),
+        por_cpf AS (
+            SELECT
+                g.cpf,
+                MAX(IF(e.tipo_evento IN ('Teste rápido - HIV',        'Diagnóstico - HIV'),        1, 0)) AS ev_hiv,
+                MAX(IF(e.tipo_evento IN ('Teste rápido - Sífilis',    'Diagnóstico - Sífilis'),    1, 0)) AS ev_sifilis,
+                MAX(IF(e.tipo_evento IN ('Teste rápido - Hepatite B', 'Diagnóstico - Hepatite B'), 1, 0)) AS ev_hepb,
+                MAX(IF(e.tipo_evento IN ('Teste rápido - Hepatite C', 'Diagnóstico - Hepatite C'), 1, 0)) AS ev_hepc,
+                MAX(IF(e.tipo_evento = 'Teste rápido - HIV',        1, 0)) AS teste_hiv,
+                MAX(IF(e.tipo_evento = 'Teste rápido - Sífilis',    1, 0)) AS teste_sifilis,
+                MAX(IF(e.tipo_evento = 'Teste rápido - Hepatite B', 1, 0)) AS teste_hepb,
+                MAX(IF(e.tipo_evento = 'Teste rápido - Hepatite C', 1, 0)) AS teste_hepc,
+                MAX(IF(e.tipo_evento = 'Diagnóstico - HIV',        1, 0)) AS diag_hiv,
+                MAX(IF(e.tipo_evento = 'Diagnóstico - Sífilis',    1, 0)) AS diag_sifilis,
+                MAX(IF(e.tipo_evento = 'Diagnóstico - Hepatite B', 1, 0)) AS diag_hepb,
+                MAX(IF(e.tipo_evento = 'Diagnóstico - Hepatite C', 1, 0)) AS diag_hepc
+            FROM gestantes g
+            LEFT JOIN evidencias e ON g.cpf = e.cpf
+            GROUP BY g.cpf
+        )
+        SELECT
+            COUNT(*) AS total,
+            COUNTIF(ev_hiv + ev_sifilis + ev_hepb + ev_hepc = 0) AS cond_0,
+            COUNTIF(ev_hiv + ev_sifilis + ev_hepb + ev_hepc = 1) AS cond_1,
+            COUNTIF(ev_hiv + ev_sifilis + ev_hepb + ev_hepc = 2) AS cond_2,
+            COUNTIF(ev_hiv + ev_sifilis + ev_hepb + ev_hepc = 3) AS cond_3,
+            COUNTIF(ev_hiv + ev_sifilis + ev_hepb + ev_hepc = 4) AS cond_4,
+            SUM(ev_hiv)       AS ev_hiv,
+            SUM(ev_sifilis)   AS ev_sifilis,
+            SUM(ev_hepb)      AS ev_hepb,
+            SUM(ev_hepc)      AS ev_hepc,
+            SUM(teste_hiv)    AS teste_hiv,
+            SUM(teste_sifilis) AS teste_sifilis,
+            SUM(teste_hepb)   AS teste_hepb,
+            SUM(teste_hepc)   AS teste_hepc,
+            SUM(diag_hiv)     AS diag_hiv,
+            SUM(diag_sifilis) AS diag_sifilis,
+            SUM(diag_hepb)    AS diag_hepb,
+            SUM(diag_hepc)    AS diag_hepc
+        FROM por_cpf
+    """
+    rows = executar_query(sql, cache_key="eventos_cobertura_gestantes", ttl=settings.CACHE_TTL_SEGUNDOS)
+    if not rows:
+        return {}
+    r = rows[0]
+    total = int(r["total"])
+
+    def pct(n: int) -> float:
+        return round(n / total * 100, 1) if total else 0.0
+
+    return {
+        "total_gestantes": total,
+        "distribuicao_condicoes": [
+            {"condicoes": i, "gestantes": int(r[f"cond_{i}"]), "pct": pct(int(r[f"cond_{i}"]))}
+            for i in range(5)
+        ],
+        "evidencia_por_condicao": [
+            {"condicao": "HIV",        "com_evidencia": int(r["ev_hiv"]),     "com_teste": int(r["teste_hiv"]),     "com_diagnostico": int(r["diag_hiv"]),     "sem_evidencia": total - int(r["ev_hiv"]),     "pct": pct(int(r["ev_hiv"])),     "pct_teste": pct(int(r["teste_hiv"])),     "pct_diagnostico": pct(int(r["diag_hiv"]))},
+            {"condicao": "Sífilis",    "com_evidencia": int(r["ev_sifilis"]), "com_teste": int(r["teste_sifilis"]), "com_diagnostico": int(r["diag_sifilis"]), "sem_evidencia": total - int(r["ev_sifilis"]), "pct": pct(int(r["ev_sifilis"])), "pct_teste": pct(int(r["teste_sifilis"])), "pct_diagnostico": pct(int(r["diag_sifilis"]))},
+            {"condicao": "Hepatite B", "com_evidencia": int(r["ev_hepb"]),    "com_teste": int(r["teste_hepb"]),    "com_diagnostico": int(r["diag_hepb"]),    "sem_evidencia": total - int(r["ev_hepb"]),    "pct": pct(int(r["ev_hepb"])),    "pct_teste": pct(int(r["teste_hepb"])),    "pct_diagnostico": pct(int(r["diag_hepb"]))},
+            {"condicao": "Hepatite C", "com_evidencia": int(r["ev_hepc"]),    "com_teste": int(r["teste_hepc"]),    "com_diagnostico": int(r["diag_hepc"]),    "sem_evidencia": total - int(r["ev_hepc"]),    "pct": pct(int(r["ev_hepc"])),    "pct_teste": pct(int(r["teste_hepc"])),    "pct_diagnostico": pct(int(r["diag_hepc"]))},
+        ],
+        "diagnosticos": [
+            {"condicao": "HIV",        "com_diagnostico": int(r["diag_hiv"]),     "pct": pct(int(r["diag_hiv"]))},
+            {"condicao": "Sífilis",    "com_diagnostico": int(r["diag_sifilis"]), "pct": pct(int(r["diag_sifilis"]))},
+            {"condicao": "Hepatite B", "com_diagnostico": int(r["diag_hepb"]),    "pct": pct(int(r["diag_hepb"]))},
+            {"condicao": "Hepatite C", "com_diagnostico": int(r["diag_hepc"]),    "pct": pct(int(r["diag_hepc"]))},
+        ],
+    }
+
+
+@router.get("/testes-gestantes")
+def get_testes_gestantes():
+    """Cobertura de testes rápidos entre gestantes: CPFs únicos por tipo de teste."""
+    sql = f"""
+        WITH gestantes AS (
+            SELECT COUNT(DISTINCT cpf) AS total
+            FROM `{PROJECT}.projeto_pic.publico_alvo`
+            WHERE tipo_publico = 'Gestacao'
+        ),
+        testes AS (
+            SELECT
+                tipo_evento,
+                COUNT(DISTINCT cpf) AS com_teste
+            FROM `{PROJECT}.projeto_pic.eventos`
+            WHERE tipo_publico = 'Gestacao'
+              AND tipo_evento LIKE 'Teste rápido%'
+            GROUP BY tipo_evento
+        )
+        SELECT
+            t.tipo_evento,
+            t.com_teste,
+            g.total AS total_gestantes,
+            ROUND(t.com_teste / NULLIF(g.total, 0) * 100, 1) AS pct
+        FROM testes t
+        CROSS JOIN gestantes g
+    """
+    rows = executar_query(sql, cache_key="eventos_testes_gestantes", ttl=settings.CACHE_TTL_SEGUNDOS)
+    total = int(rows[0]["total_gestantes"]) if rows else 0
+    return {
+        "total_gestantes": total,
+        "testes": [
+            {
+                "tipo_evento": r["tipo_evento"],
+                "com_teste": int(r["com_teste"]),
+                "pct": float(r["pct"] or 0),
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.get("/completude")
 def get_completude():
     """Completude dos campos transmitidos."""

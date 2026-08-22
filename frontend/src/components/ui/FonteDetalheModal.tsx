@@ -142,6 +142,8 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
   const temInfoParticaoDiag = fonte.severidade_particao != null;
   // Atualizações: exibe bloco de partição sempre que há uma partição válida (independente de severidade)
   const temInfoParticaoAtu = fonte.ultima_particao_valida != null || (fonte.particoes_futuras ?? 0) > 0;
+  // Granularidade mensal: usa meses_sem_nova_particao em vez de dias_sem_nova_particao
+  const particaoMensal = fonte.meses_sem_nova_particao != null;
   const temDadoCarregado = fonte.ultimo_dado_carregado !== null && fonte.ultimo_dado_carregado !== undefined;
   const sevIngestao: Severidade = temDadoCarregado && fonte.horas_sem_dado_carregado != null
     ? sevFreshness(fonte.horas_sem_dado_carregado, fonte.cadencia)
@@ -221,13 +223,17 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
                 <LinhaDiagnostico
                   label="Particionamento"
                   valor={
-                    fonte.particoes_futuras
-                      ? `${fonte.particoes_futuras} ${fonte.particoes_futuras === 1 ? "partição futura" : "partições futuras"}`
-                      : fonte.dias_sem_nova_particao === 0
-                        ? "atualizada hoje"
-                        : fonte.dias_sem_nova_particao != null
-                          ? `sem nova há ${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
-                          : "sem dados"
+                    particaoMensal
+                      ? fonte.meses_sem_nova_particao != null
+                        ? `sem nova há ${fonte.meses_sem_nova_particao} ${fonte.meses_sem_nova_particao === 1 ? "mês" : "meses"}`
+                        : "sem dados"
+                      : fonte.particoes_futuras
+                        ? `${fonte.particoes_futuras} ${fonte.particoes_futuras === 1 ? "partição futura" : "partições futuras"}`
+                        : fonte.dias_sem_nova_particao === 0
+                          ? "atualizada hoje"
+                          : fonte.dias_sem_nova_particao != null
+                            ? `sem nova há ${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
+                            : "sem dados"
                   }
                   sev={sparticao}
                 />
@@ -266,13 +272,21 @@ export function FonteDetalheModal({ fonte, onClose }: Props) {
                 <>
                   <LinhaInfo
                     label="Última partição válida"
-                    valor={fonte.ultima_particao_valida ? new Date(fonte.ultima_particao_valida + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                    valor={fonte.ultima_particao_valida
+                      ? particaoMensal
+                        ? (() => { const d = new Date(fonte.ultima_particao_valida + "T00:00:00"); return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`; })()
+                        : new Date(fonte.ultima_particao_valida + "T00:00:00").toLocaleDateString("pt-BR")
+                      : "—"}
                   />
                   <LinhaInfo
                     label="Sem nova partição há"
-                    valor={fonte.dias_sem_nova_particao !== null
-                      ? `${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
-                      : "—"}
+                    valor={particaoMensal
+                      ? fonte.meses_sem_nova_particao != null
+                        ? `${fonte.meses_sem_nova_particao} ${fonte.meses_sem_nova_particao === 1 ? "mês" : "meses"}`
+                        : "—"
+                      : fonte.dias_sem_nova_particao !== null
+                        ? `${fonte.dias_sem_nova_particao} ${fonte.dias_sem_nova_particao === 1 ? "dia" : "dias"}`
+                        : "—"}
                   />
                   {(fonte.particoes_futuras ?? 0) > 0 && (
                     <>

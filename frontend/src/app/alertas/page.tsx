@@ -204,10 +204,22 @@ export default function AlertasPage() {
                 <div className="border-t border-gray-100 pt-3">
                   <p className="font-semibold text-gray-700 mb-2">Categorias monitoradas:</p>
                   <ul className="space-y-1.5">
-                    {categorias.map((c) => (
-                      <li key={c} className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
-                        {c}
+                    {[
+                      { label: "Freshness de Fonte", desc: "Tabela sem atualização > 24h" },
+                      { label: "Volume de Fonte", desc: "Variação de volume > ±10%" },
+                      { label: "Execução de Modelo", desc: "Modelo dbt sem rodar > 25h" },
+                      { label: "Consistência de Datas", desc: "Eventos futuros ou datas inválidas" },
+                      { label: "Sobreposição de CPF", desc: "CPF em mais de um segmento" },
+                      { label: "Pentavalente", desc: "Intervalo D2→D3 fora do esperado" },
+                      { label: "Unidades de Saúde", desc: "Queda > 25% ou ausência > 72h" },
+                      { label: "Rastreamento IST", desc: "Cobertura IST < 50% em gestantes" },
+                    ].map((c) => (
+                      <li key={c.label} className="flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0 mt-1.5" />
+                        <span>
+                          <span className="text-gray-800 font-medium">{c.label}</span>
+                          <span className="text-gray-400"> — {c.desc}</span>
+                        </span>
                       </li>
                     ))}
                   </ul>

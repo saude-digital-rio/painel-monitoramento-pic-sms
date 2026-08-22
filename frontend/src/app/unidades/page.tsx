@@ -5,19 +5,36 @@ import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { SeveridadeBadge } from "@/components/ui/Badge";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { MultiBarChart } from "@/components/charts/BarChart";
 import { api, type UnidadeAPI } from "@/lib/api/client";
-import { Search, BarChart2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+
+const POR_PAGINA = 10;
 
 export default function UnidadesPage() {
   const [filtroAp, setFiltroAp] = useState<string>("todas");
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
   const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(1);
   const [unidadeSelecionada, setUnidadeSelecionada] = useState<string | null>(null);
   const [unidades, setUnidades] = useState<UnidadeAPI[] | null>(null);
+  const [serieUnidade, setSerieUnidade] = useState<{ semana: string; eventos: number }[] | null>(null);
+  const [carregandoSerie, setCarregandoSerie] = useState(false);
 
   useEffect(() => {
     api.unidades.lista().then((real) => setUnidades(real ?? []));
   }, []);
+
+  useEffect(() => {
+    if (!unidadeSelecionada) { setSerieUnidade(null); return; }
+    setCarregandoSerie(true);
+    api.unidades.serie(unidadeSelecionada).then((data) => {
+      setSerieUnidade(data ?? []);
+      setCarregandoSerie(false);
+    });
+  }, [unidadeSelecionada]);
+
+  useEffect(() => { setPagina(1); }, [busca, filtroAp, filtroStatus]);
 
   if (unidades === null) return <PageSkeleton />;
 
@@ -29,6 +46,9 @@ export default function UnidadesPage() {
     if (busca && !u.nome.toLowerCase().includes(busca.toLowerCase()) && !u.cnes.includes(busca)) return false;
     return true;
   });
+
+  const totalPaginas = Math.max(1, Math.ceil(unidadesFiltradas.length / POR_PAGINA));
+  const unidadesPagina = unidadesFiltradas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   const unidadeAtual = unidades.find((u) => u.cnes === unidadeSelecionada);
 
@@ -118,7 +138,7 @@ export default function UnidadesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {unidadesFiltradas.map((u) => {
+                {unidadesPagina.map((u) => {
                   let varColor = "text-green-600";
                   if (u.variacao_pct <= -30) varColor = "text-red-600";
                   else if (u.variacao_pct <= -10) varColor = "text-orange-600";
@@ -157,18 +177,83 @@ export default function UnidadesPage() {
               </tbody>
             </table>
           </div>
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
+              <span>
+                Mostrando {Math.min((pagina - 1) * POR_PAGINA + 1, unidadesFiltradas.length)}–{Math.min(pagina * POR_PAGINA, unidadesFiltradas.length)} de {unidadesFiltradas.length} unidades
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {Array.from({ length: Math.min(totalPaginas, 7) }, (_, i) => {
+                  let num: number;
+                  if (totalPaginas <= 7) {
+                    num = i + 1;
+                  } else if (pagina <= 4) {
+                    num = i + 1;
+                    if (i === 6) num = totalPaginas;
+                    if (i === 5) return <span key="e1" className="px-1">…</span>;
+                  } else if (pagina >= totalPaginas - 3) {
+                    num = totalPaginas - 6 + i;
+                    if (i === 0) num = 1;
+                    if (i === 1) return <span key="e2" className="px-1">…</span>;
+                  } else {
+                    const map = [1, -1, pagina - 1, pagina, pagina + 1, -2, totalPaginas];
+                    if (map[i] === -1) return <span key="e3" className="px-1">…</span>;
+                    if (map[i] === -2) return <span key="e4" className="px-1">…</span>;
+                    num = map[i];
+                  }
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => setPagina(num)}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                        pagina === num ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Detalhes da unidade ou regras */}
         <div>
           {unidadeSelecionada && unidadeAtual ? (
             <Card title={unidadeAtual.nome} subtitle={`CNES ${unidadeSelecionada}`}>
-              {/* Histórico — placeholder até endpoint disponível */}
-              <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400 mb-4">
-                <BarChart2 className="w-8 h-8 opacity-30" />
-                <p className="text-sm">Histórico de eventos em desenvolvimento</p>
-                <p className="text-xs text-gray-300">Requer endpoint de série histórica por unidade</p>
-              </div>
+              {carregandoSerie ? (
+                <div className="h-40 bg-gray-50 rounded-xl animate-pulse mb-4" />
+              ) : serieUnidade && serieUnidade.length > 0 ? (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-400 mb-2">Eventos semanais — últimas 12 semanas</p>
+                  <MultiBarChart
+                    data={serieUnidade}
+                    bars={[{ key: "eventos", label: "Eventos", color: "#3b82f6" }]}
+                    xKey="semana"
+                    height={160}
+                    formatX={(v) => v.slice(5)}
+                  />
+                </div>
+              ) : (
+                <div className="h-40 flex items-center justify-center text-xs text-gray-300 mb-4">
+                  Sem dados históricos
+                </div>
+              )}
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between py-1 border-b border-gray-50">
                   <span className="text-gray-500">Média histórica</span>

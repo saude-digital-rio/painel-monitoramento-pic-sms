@@ -7,7 +7,6 @@ import {
   Database,
   Users,
   Activity,
-  GitCompare,
   MapPin,
   Bell,
   ChevronRight,
@@ -18,7 +17,6 @@ const navItems = [
   { href: "/fontes", label: "Fontes e Atualização", icon: Database },
   { href: "/populacao", label: "População-alvo", icon: Users },
   { href: "/eventos", label: "Eventos", icon: Activity },
-  { href: "/consistencia", label: "Consistência entre Fontes", icon: GitCompare },
   { href: "/unidades", label: "Unidades", icon: MapPin },
   { href: "/alertas", label: "Alertas", icon: Bell },
 ];

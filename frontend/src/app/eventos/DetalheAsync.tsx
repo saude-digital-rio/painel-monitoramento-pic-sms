@@ -1,21 +1,15 @@
 import { Card } from "@/components/ui/Card";
 import { ApiErrorCard } from "@/components/ui/ApiErrorCard";
-import { EventoSegmentoTable } from "@/components/tables/EventoSegmentoTable";
 import { api } from "@/lib/api/client";
-import { AlertTriangle } from "lucide-react";
 
 export async function DetalheAsync() {
-  const [consistenciaReal, completudeReal, eventoSegReal] = await Promise.all([
+  const [consistenciaReal, completudeReal] = await Promise.all([
     api.eventos.consistenciaDatas(),
     api.eventos.completude(),
-    api.eventos.eventoSegmento(),
   ]);
 
-  const incompatíveis = eventoSegReal?.filter((e) => !e.compativel) ?? [];
-
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card title="Consistência das datas" tooltip="Eventos com datas inválidas: no futuro, anteriores ao nascimento da paciente ou fora da janela de monitoramento esperada.">
           {consistenciaReal ? (
             <div className="space-y-3">
@@ -71,31 +65,6 @@ export async function DetalheAsync() {
             <ApiErrorCard />
           )}
         </Card>
-      </div>
-
-      <Card title="Compatibilidade de eventos por segmento" subtitle="Detecta eventos registrados para o segmento errado" tooltip="Sinaliza quando um tipo de evento não deveria ser aplicado àquele segmento. Ex: vacina pentavalente D3 (exclusiva de crianças) registrada para gestante ou puerpério. Qualquer linha 'Improvável' indica possível erro de cadastro.">
-        {eventoSegReal ? (
-          <>
-            <div className="flex gap-3 mb-4">
-              {incompatíveis.length > 0 ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                  <span className="text-sm text-red-700 font-medium">
-                    {incompatíveis.length} {incompatíveis.length > 1 ? "combinações improváveis detectadas" : "combinação improvável detectada"}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                  <span className="text-green-600 text-sm font-medium">✓ Todas as combinações são compatíveis</span>
-                </div>
-              )}
-            </div>
-            <EventoSegmentoTable rows={eventoSegReal} />
-          </>
-        ) : (
-          <ApiErrorCard />
-        )}
-      </Card>
-    </>
+    </div>
   );
 }

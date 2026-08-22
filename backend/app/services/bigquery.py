@@ -165,6 +165,7 @@ FONTE_CONFIGS = [
         "dataset": "registro_vacinal",
         "table_id": "vacinacao",
         "cadencia": "diaria",
+        "particao_granularidade": "month",
     },
     {
         "nome": "Gestações",
@@ -179,6 +180,7 @@ FONTE_CONFIGS = [
         "dataset": "saude_historico_clinico",
         "table_id": "episodio_assistencial",
         "cadencia": "diaria",
+        "particao_granularidade": "month",
     },
 ]
 

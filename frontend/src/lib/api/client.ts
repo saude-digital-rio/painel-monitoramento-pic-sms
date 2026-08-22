@@ -51,6 +51,7 @@ export interface FonteStatusAPI {
   media_4_semanas: number | null;
   ultima_particao_valida: string | null;
   dias_sem_nova_particao: number | null;
+  meses_sem_nova_particao: number | null;
   particoes_futuras: number | null;
   registros_anomalos: number | null;
   severidade_particao: Severidade | null;
@@ -106,6 +107,27 @@ export interface ConsistenciaPopulacaoAPI {
   total_cpfs: number;
   duplicidades_mesmo_segmento: number;
   combinacoes: { segmentos: string; quantidade_cpfs: number }[];
+}
+
+export interface TestesGestantesAPI {
+  total_gestantes: number;
+  testes: { tipo_evento: string; com_teste: number; pct: number }[];
+}
+
+export interface CoberturaGestantesAPI {
+  total_gestantes: number;
+  distribuicao_condicoes: { condicoes: number; gestantes: number; pct: number }[];
+  evidencia_por_condicao: {
+    condicao: string;
+    com_evidencia: number;
+    com_teste: number;
+    com_diagnostico: number;
+    sem_evidencia: number;
+    pct: number;
+    pct_teste: number;
+    pct_diagnostico: number;
+  }[];
+  diagnosticos: { condicao: string; com_diagnostico: number; pct: number }[];
 }
 
 export interface SerieEventoAPI {
@@ -259,6 +281,8 @@ export const api = {
     consistenciaDatas: () => get<Record<string, number>>("/eventos/consistencia-datas"),
     eventoSegmento: () => get<{ tipo_evento: string; tipo_publico: string; count: number; compativel: boolean }[]>("/eventos/evento-segmento"),
     completude: () => get<Record<string, number>>("/eventos/completude"),
+    testesGestantes: () => get<TestesGestantesAPI>("/eventos/testes-gestantes"),
+    coberturaGestantes: () => get<CoberturaGestantesAPI>("/eventos/cobertura-gestantes"),
   },
   vacinacao: {
     serie: (semanas = 12) => get<VacinacaoItemAPI[]>(`/vacinacao/serie?semanas=${semanas}`),
@@ -269,6 +293,7 @@ export const api = {
   },
   unidades: {
     lista: () => get<UnidadeAPI[]>("/unidades"),
+    serie: (cnes: string) => get<{ semana: string; eventos: number }[]>(`/unidades/${cnes}/serie`),
   },
   alertas: {
     lista: () => get<AlertaAPI[]>("/alertas"),

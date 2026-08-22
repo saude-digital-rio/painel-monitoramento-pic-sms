@@ -128,11 +128,11 @@ def get_sequencia_pentavalente():
             COUNTIF(d1.paciente_cpf IS NULL) AS com_d3_sem_d1,
             COUNTIF(
                 d2.paciente_cpf IS NOT NULL
-                AND DATE_DIFF(d3.data_d3, d2.data_d2, DAY) BETWEEN 28 AND 90
+                AND DATE_DIFF(d3.data_d3, d2.data_d2, DAY) BETWEEN 30 AND 90
             ) AS intervalo_ok,
             COUNTIF(
                 d2.paciente_cpf IS NOT NULL
-                AND DATE_DIFF(d3.data_d3, d2.data_d2, DAY) < 28
+                AND DATE_DIFF(d3.data_d3, d2.data_d2, DAY) < 30
             ) AS intervalo_menor_28d,
             COUNTIF(
                 d2.paciente_cpf IS NOT NULL

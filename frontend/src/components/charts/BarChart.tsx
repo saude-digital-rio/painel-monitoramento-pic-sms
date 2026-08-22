@@ -23,7 +23,7 @@ interface Props {
   data: any[];
   bars: BarConfig[];
   xKey?: string;
-  height?: number;
+  height?: number | string;
   stacked?: boolean;
   formatY?: (v: number) => string;
   formatX?: (v: string) => string;
@@ -44,7 +44,7 @@ export function MultiBarChart({
   data,
   bars,
   xKey = "data",
-  height = 260,
+  height = 260 as number | string,
   stacked = false,
   formatY = defaultFormatY,
   formatX = defaultFormatX,
